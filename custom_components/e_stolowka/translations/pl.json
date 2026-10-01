@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "e-Stołówka",
+        "description": "Podaj adres e-Stołówki swojej szkoły oraz dane, którymi logujesz się jako rodzic.",
+        "data": {
+          "base_url": "Adres e-Stołówki",
+          "email": "E-mail",
+          "password": "Hasło"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponowne logowanie",
+        "description": "Hasło do konta {email} przestało działać. Podaj aktualne.",
+        "data": { "password": "Hasło" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie udało się połączyć ze stroną szkoły.",
+      "invalid_auth": "Nieprawidłowy e-mail lub hasło.",
+      "unknown": "Nieoczekiwany błąd — szczegóły w logu Home Assistanta."
+    },
+    "abort": {
+      "already_configured": "Ta stołówka jest już skonfigurowana.",
+      "reauth_successful": "Ponowne logowanie zakończone pomyślnie."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje",
+        "data": { "update_hours": "Co ile godzin odświeżać jadłospis" }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "today": { "name": "Jadłospis na dziś" },
+      "tomorrow": { "name": "Jadłospis na jutro" },
+      "week": { "name": "Jadłospis tygodniowy" }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "e-Stołówka (loca.pl)",
+  "country": [
+    "PL"
+  ],
+  "homeassistant": "2025.2.0",
+  "render_readme": true
+}

@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "School canteen",
+        "description": "Enter your school's e-Stołówka address and the parent account you sign in with.",
+        "data": {
+          "base_url": "Canteen address",
+          "email": "E-mail",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in again",
+        "description": "The password for {email} stopped working. Enter the current one.",
+        "data": { "password": "Password" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the school's website.",
+      "invalid_auth": "Invalid e-mail or password.",
+      "unknown": "Unexpected error — see the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This canteen is already configured.",
+      "reauth_successful": "Signed in again successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": { "update_hours": "Refresh the menu every (hours)" }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "today": { "name": "Menu today" },
+      "tomorrow": { "name": "Menu tomorrow" },
+      "week": { "name": "Weekly menu" }
+    }
+  }
+}
