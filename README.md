@@ -85,21 +85,48 @@ warunkiem, jak w przykładzie niżej.
 ```yaml
 type: markdown
 title: Stołówka
-content: >
+content: |
+  {% set dzis = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') %}
+  {% set jutro = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'potrawy') %}
   **Dziś:**
 
-  {% for potrawa in state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') %}
-  - {{ potrawa }}
-  {% endfor %}
+  {% if dzis %}- {{ dzis | join('\n- ') }}{% else %}_brak jadłospisu_{% endif %}
 
   **Jutro:**
 
-  {% for potrawa in state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'potrawy') %}
-  - {{ potrawa }}
-  {% endfor %}
+  {% if jutro %}- {{ jutro | join('\n- ') }}{% else %}_brak jadłospisu_{% endif %}
 ```
 
 Wariant dietetyczny pokażesz, czytając atrybut `dieta` zamiast `potrawy`.
+
+> Użyj `content: |`, nie `content: >`. Składany blok YAML (`>`) skleja kolejne
+> linie spacjami, przez co punkty listy zlewają się w jeden akapit z myślnikami
+> w środku zdania.
+
+**Mniejszy tekst.** Karta markdown nie ma własnej opcji rozmiaru czcionki.
+Z [card_mod](https://github.com/thomasloven/lovelace-card-mod) (HACS → Frontend)
+zmniejszysz też nagłówek:
+
+```yaml
+card_mod:
+  style: |
+    ha-card { font-size: 13px; line-height: 1.45; }
+    ha-card .card-header { font-size: 20px; padding-bottom: 4px; }
+```
+
+Bez dodatków wystarczy opakować treść w `<div>` — puste linie wokół są
+konieczne, inaczej markdown w środku nie zostanie sparsowany:
+
+```yaml
+content: |
+  <div style="font-size: 0.85em; line-height: 1.45">
+
+  **Dziś:**
+
+  - {{ state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') | join('\n- ') }}
+
+  </div>
+```
 
 ### Przykład automatyzacji
 
