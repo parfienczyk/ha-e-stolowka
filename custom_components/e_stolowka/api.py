@@ -214,7 +214,7 @@ class LocaClient:
             # sprawdzenia strona logowania wyglądałaby jak pusty jadłospis.
             if _is_logged_out(page):
                 raise LocaAuthError("Sesja wygasła przy czytaniu jadłospisu")
-            days.update(parse_menu(page))
+            days.update(parse_menu(page, today, link.start))
 
         if not days:
             raise LocaParseError(
@@ -241,16 +241,19 @@ class LocaClient:
                 self._news_path = path
                 return html
 
+        # Rozróżniamy „nie dowieźliśmy żadnej strony” od „strony są, ale bez
+        # jadłospisu”. Drugi przypadek zdarza się szkołom z innym układem serwisu
+        # i ma pierwszeństwo nad błędem połączenia z pozostałych kandydatów —
+        # inaczej 404 na jednej ścieżce zasłoniłby to, co naprawdę się stało.
+        checked = ", ".join(NEWS_PATHS)
+        if loaded:
+            raise LocaParseError(
+                f"Żadna ze stron ({checked}) nie zawiera wpisów z jadłospisem"
+            )
         if last_error is not None:
             raise last_error
-        # Rozróżniamy „nie dowieźliśmy żadnej strony” od „strony są, ale bez
-        # jadłospisu” — drugi przypadek zdarza się szkołom z innym układem
-        # serwisu i mylący komunikat wysłałby je w złą stronę.
-        checked = ", ".join(NEWS_PATHS)
         raise LocaParseError(
-            f"Żadna ze stron ({checked}) nie zawiera wpisów z jadłospisem"
-            if loaded
-            else f"Nie znaleziono listy aktualności — sprawdzone ścieżki: {checked}"
+            f"Nie znaleziono listy aktualności — sprawdzone ścieżki: {checked}"
         )
 
 
@@ -292,27 +295,34 @@ def _slug_date(value: str) -> date | None:
         return None
 
 
-def parse_menu(html: str, today: date | None = None) -> dict[date, MenuDay]:
+def parse_menu(
+    html: str,
+    today: date | None = None,
+    week_start: date | None = None,
+) -> dict[date, MenuDay]:
     """Wyciągnij jadłospis z treści wpisu.
 
     Dni rozdzielone są akapitami z nazwą dnia tygodnia i datą; wszystko między
     nagłówkami to potrawy. Gdy szkoła użyła tabeli, przechodzimy na parser tabel.
+    `week_start` (data z adresu wpisu) pozwala rozpoznać dzień także wtedy, gdy
+    w nagłówku jest sama nazwa dnia, bez daty.
     """
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup.select("script, style, nav, footer, header"):
         tag.decompose()
-
     for line_break in soup.find_all("br"):
         line_break.replace_with("\n")
 
     content = soup.select_one("main") or soup.body or soup
-    days = _parse_day_blocks(content, today)
+    days = _parse_day_blocks(content, today, week_start)
     if not days:
         days = _parse_tables(content, today)
     return dict(sorted(days.items()))
 
 
-def _parse_day_blocks(content: Tag, today: date | None) -> dict[date, MenuDay]:
+def _parse_day_blocks(
+    content: Tag, today: date | None, week_start: date | None
+) -> dict[date, MenuDay]:
     """Zbierz jadłospis z akapitów, dzielonych nagłówkami dni tygodnia."""
     days: dict[date, MenuDay] = {}
     current: MenuDay | None = None
@@ -326,8 +336,16 @@ def _parse_day_blocks(content: Tag, today: date | None) -> dict[date, MenuDay]:
         if not line:
             continue
 
-        if (day := _day_header(block, line, today)) is not None:
-            current = days.setdefault(day, MenuDay(day=day))
+        # Edytory WYSIWYG wstawiają cały dzień w jeden akapit, rozdzielony <br>,
+        # więc nagłówka szukamy w pierwszej linii, a resztę traktujemy jak potrawy.
+        header, _, rest = line.partition("\n")
+        day, is_header = _day_header(block, header, today, week_start)
+        if is_header:
+            # Nagłówek dnia bez rozpoznanej daty nie może dziedziczyć poprzedniego
+            # dnia — lepiej pominąć te potrawy niż przypisać je do złej daty.
+            current = days.setdefault(day, MenuDay(day=day)) if day else None
+            if current is not None and rest:
+                _add_dish(current, rest)
             continue
 
         if current is not None:
@@ -336,16 +354,38 @@ def _parse_day_blocks(content: Tag, today: date | None) -> dict[date, MenuDay]:
     return {day: menu for day, menu in days.items() if menu.dishes or menu.diet}
 
 
-def _day_header(block: Tag, line: str, today: date | None) -> date | None:
-    """Zwróć datę, jeśli akapit jest nagłówkiem dnia."""
+def _day_header(
+    block: Tag, line: str, today: date | None, week_start: date | None
+) -> tuple[date | None, bool]:
+    """Zwróć (datę, czy-to-nagłówek) dla pierwszej linii akapitu.
+
+    Nazwa dnia tygodnia jest wiarygodnym separatorem, więc uznajemy ją za
+    nagłówek nawet bez czytelnej daty — wtedy datę wyliczamy z tygodnia wpisu.
+    """
     match = _RE_DAY_HEADER.match(line)
     if match is not None:
-        return _parse_date(match.group(2) or line, today)
+        rest = match.group(2)
+        day = _parse_date(rest or line, today)
+        if day is None and week_start is not None:
+            day = _weekday_in_week(week_start, match.group(1).lower())
+        return day, True
 
-    # Nagłówek bez nazwy dnia: cały akapit pogrubiony i zawiera jedną datę.
+    # Nagłówek bez nazwy dnia musi mieć pełną datę z rokiem, inaczej pogrubiona
+    # linia w rodzaju "Zestaw 1.5 l soku" udawałaby 1 maja.
     if _is_bold(block) and len(_RE_DATE.findall(line)) == 1:
-        return _parse_date(line, today)
-    return None
+        day = _parse_date(line, today, require_year=True)
+        if day is not None:
+            return day, True
+    return None, False
+
+
+def _weekday_in_week(week_start: date, weekday: str) -> date | None:
+    """Wylicz datę dnia tygodnia w tygodniu rozpoczętym podaną datą."""
+    try:
+        index = _WEEKDAYS_PL.index(weekday)
+    except ValueError:
+        return None
+    return week_start + timedelta(days=index - week_start.weekday())
 
 
 def _is_bold(block: Tag) -> bool:
@@ -370,7 +410,11 @@ def _add_dish(menu: MenuDay, line: str) -> None:
 
 
 def _parse_tables(content: Tag, today: date | None) -> dict[date, MenuDay]:
-    """Zbierz jadłospis z wierszy tabel — układ używany przez część szkół."""
+    """Zbierz jadłospis z wierszy tabel — układ używany przez część szkół.
+
+    Kilka wierszy może opisywać ten sam dzień (osobno zupa, osobno drugie
+    danie), dlatego wiersze scalamy, a nie nadpisujemy.
+    """
     days: dict[date, MenuDay] = {}
     for row in content.select("tr"):
         cells = [_text(cell) for cell in row.select("th, td")]
@@ -378,17 +422,17 @@ def _parse_tables(content: Tag, today: date | None) -> dict[date, MenuDay]:
         if not cells:
             continue
 
-        day = next(filter(None, (_parse_date(cell, today) for cell in cells)), None)
+        dates = [_parse_date(cell, today, require_year=True) for cell in cells]
+        day = next(filter(None, dates), None)
         if day is None:
             continue
 
-        menu = MenuDay(day=day)
-        for cell in cells:
-            if _parse_date(cell, today) is None:
+        menu = days.setdefault(day, MenuDay(day=day))
+        for cell, cell_date in zip(cells, dates, strict=True):
+            if cell_date is None:
                 _add_dish(menu, cell)
-        if menu.dishes or menu.diet:
-            days[day] = menu
-    return days
+
+    return {day: menu for day, menu in days.items() if menu.dishes or menu.diet}
 
 
 def _text(tag: Tag) -> str:
@@ -407,8 +451,14 @@ def _clean(text: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
-def _parse_date(text: str, today: date | None = None) -> date | None:
-    """Zinterpretuj datę; rok uzupełnia z bieżącego, gdy go brakuje."""
+def _parse_date(
+    text: str, today: date | None = None, *, require_year: bool = False
+) -> date | None:
+    """Zinterpretuj datę; rok uzupełnia z bieżącego, gdy go brakuje.
+
+    `require_year` odrzuca zapisy bez roku — potrzebne tam, gdzie nie ma innego
+    kontekstu i liczby w rodzaju „1.5 l" wyglądałyby jak data.
+    """
     match = _RE_DATE.search(text)
     if match is None:
         return None
@@ -416,14 +466,25 @@ def _parse_date(text: str, today: date | None = None) -> date | None:
     today = today or date.today()
     day, month, year = match.group(1), match.group(2), match.group(3)
     if year is None:
-        candidate = _safe_date(today.year, int(month), int(day))
-        # Styczniowy jadłospis czytany w grudniu należy do następnego roku.
-        if candidate is not None and candidate - today < timedelta(days=-180):
-            candidate = _safe_date(today.year + 1, int(month), int(day))
-        return candidate
+        if require_year:
+            return None
+        return _nearest_year(today, int(month), int(day))
 
     value = int(year)
     return _safe_date(value + 2000 if value < 100 else value, int(month), int(day))
+
+
+def _nearest_year(today: date, month: int, day: int) -> date | None:
+    """Dobierz rok tak, by data wypadła najbliżej dzisiejszej.
+
+    Styczniowy jadłospis czytany w grudniu należy do następnego roku, a grudniowy
+    czytany w styczniu — do poprzedniego.
+    """
+    candidates = (_safe_date(today.year + offset, month, day) for offset in (-1, 0, 1))
+    valid = [candidate for candidate in candidates if candidate is not None]
+    if not valid:
+        return None
+    return min(valid, key=lambda candidate: abs((candidate - today).days))
 
 
 def _safe_date(year: int, month: int, day: int) -> date | None:

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import MenuDay
@@ -134,6 +136,25 @@ class LocaSensor(CoordinatorEntity[LocaCoordinator], SensorEntity):
             name=f"e-Stołówka {entry.title}",
             configuration_url=entry.data[CONF_BASE_URL],
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Przelicz stan o północy, nie czekając na kolejne odpytanie.
+
+        „Dziś” i „jutro” zależą od bieżącej daty, a nie od nowych danych —
+        bez tego po północy encje pokazywałyby wczorajszy jadłospis aż do
+        następnego pobrania, czyli domyślnie nawet kilka godzin.
+        """
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_time_change(
+                self.hass, self._async_day_changed, hour=0, minute=0, second=0
+            )
+        )
+
+    @callback
+    def _async_day_changed(self, now: datetime) -> None:
+        """Zapisz stan po zmianie dnia."""
+        self.async_write_ha_state()
 
     @property
     def native_value(self) -> str | int | None:

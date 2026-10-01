@@ -1,8 +1,20 @@
-# ha-e-stolowka
+# e-Stołówka dla Home Assistanta
 
-Integracja [Home Assistant](https://www.home-assistant.io/) pobierająca jadłospis
-szkolnej stołówki z platformy **e-Stołówka** ([loca.pl](https://loca.pl)) i udostępniająca
-go jako encje — menu na dziś, na jutro oraz cały pobrany tydzień.
+[![Walidacja](https://github.com/parfienczyk/ha-e-stolowka/actions/workflows/validate.yml/badge.svg)](https://github.com/parfienczyk/ha-e-stolowka/actions/workflows/validate.yml)
+[![HACS: repozytorium własne](https://img.shields.io/badge/HACS-repozytorium%20w%C5%82asne-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![Wersja](https://img.shields.io/github/v/release/parfienczyk/ha-e-stolowka?display_name=tag&sort=semver)](https://github.com/parfienczyk/ha-e-stolowka/releases)
+[![Licencja: MIT](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
+
+**Jadłospis szkolnej stołówki w Home Assistancie.** Integracja czyta menu
+z platformy **e-Stołówka** ([loca.pl](https://loca.pl)) i udostępnia je jako encje:
+na dziś, na jutro i na cały pobrany tydzień — razem z alergenami i wariantami
+dietetycznymi.
+
+```
+sensor.e_stolowka_sobolewosp_jadlospis_na_dzis
+  zupa barszcz czerwony (seler, mleko), naleśniki z serem i sosem
+  jogurtowo-jagodowym (mleko, pszenica, jaja), Kompot, Owoc: nektarynka
+```
 
 > Projekt społecznościowy, niepowiązany z loca.pl ani z żadną szkołą.
 
@@ -145,9 +157,19 @@ ruff check . && ruff format --check .
 ## Prywatność
 
 Dane logowania trafiają wyłącznie na serwer Twojej szkoły i są przechowywane
-w konfiguracji Home Assistanta na Twoim urządzeniu. Integracja nie wysyła niczego
-nigdzie indziej, nie zbiera telemetrii.
+w konfiguracji Home Assistanta na Twoim urządzeniu. Każdy wpis konfiguracyjny ma
+własną sesję i własne ciasteczka. Integracja nie wysyła niczego nigdzie indziej
+i nie zbiera telemetrii — szczegóły w [SECURITY.md](SECURITY.md).
+
+## Dokumenty
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — jak pomóc, jak uruchomić testy, jak dodać obsługę kolejnej szkoły
+- [SECURITY.md](SECURITY.md) — co integracja robi z danymi logowania i czego nie wysyłać publicznie
+- [CHANGELOG.md](CHANGELOG.md) — historia zmian
 
 ## Licencja
 
 [MIT](LICENSE)
+
+Jeśli ta integracja oszczędza Ci porannego pytania „co dziś na obiad?" —
+zostaw gwiazdkę. To cała zapłata, jakiej projekt oczekuje.

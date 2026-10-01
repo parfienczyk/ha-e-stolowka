@@ -136,3 +136,77 @@ def test_date_formats(cell: str, expected: date | None) -> None:
     """Rozpoznawane formaty dat; niepoprawna data jest pomijana."""
     days = parse_menu(f"<table><tr><td>{cell}</td><td>Barszcz</td></tr></table>", TODAY)
     assert (next(iter(days)) if days else None) == expected
+
+
+# ── Regresje z code review ───────────────────────────────────────────────────
+
+
+def test_day_and_dishes_in_one_paragraph() -> None:
+    """Układ z edytora WYSIWYG: cały dzień w jednym akapicie, dzielony <br>."""
+    days = parse_menu(
+        "<p><strong>PONIEDZIAŁEK 28.09.26</strong><br>zupa pomidorowa<br>kotlet</p>",
+        TODAY,
+    )
+    assert list(days) == [MONDAY]
+    assert days[MONDAY].dishes == ["zupa pomidorowa", "kotlet"]
+
+
+def test_table_rows_for_one_day_are_merged() -> None:
+    """Zupa i drugie danie w osobnych wierszach trafiają do tego samego dnia."""
+    days = parse_menu(
+        "<table>"
+        "<tr><td>11.05.2026</td><td>Zupa</td><td>Żurek</td></tr>"
+        "<tr><td>11.05.2026</td><td>II danie</td><td>Kotlet schabowy</td></tr>"
+        "</table>",
+        TODAY,
+    )
+    assert days[date(2026, 5, 11)].dishes == [
+        "Zupa",
+        "Żurek",
+        "II danie",
+        "Kotlet schabowy",
+    ]
+
+
+def test_quantity_is_not_mistaken_for_a_date() -> None:
+    """Pogrubione „1.5 l" to nie 1 maja — bez roku nagłówek jest odrzucany."""
+    assert (
+        parse_menu("<p><strong>Zestaw 1.5 l soku</strong></p><p>cos</p>", TODAY) == {}
+    )
+    assert parse_menu("<table><tr><td>Mleko 1.5%</td><td>kakao</td></tr></table>") == {}
+
+
+def test_weekday_without_date_uses_week_from_url() -> None:
+    """Nagłówek „WTOREK" bez daty dostaje datę z tygodnia wpisu."""
+    days = parse_menu(
+        "<p><strong>WTOREK</strong></p><p>zupa B</p>", TODAY, week_start=MONDAY
+    )
+    assert list(days) == [TUESDAY]
+    assert days[TUESDAY].dishes == ["zupa B"]
+
+
+def test_weekday_without_date_or_context_does_not_leak() -> None:
+    """Bez kontekstu tygodnia potrawy nie są dopisywane do poprzedniego dnia."""
+    days = parse_menu(
+        "<p><strong>PONIEDZIAŁEK 28.09.26</strong></p><p>zupa A</p>"
+        "<p><strong>WTOREK</strong></p><p>zupa B</p>",
+        TODAY,
+    )
+    assert days[MONDAY].dishes == ["zupa A"]
+    assert "zupa B" not in days[MONDAY].dishes
+
+
+@pytest.mark.parametrize(
+    ("text", "read_on", "expected"),
+    [
+        ("28.12", date(2027, 1, 5), date(2026, 12, 28)),
+        ("05.01", date(2026, 12, 28), date(2027, 1, 5)),
+        ("15.06", date(2026, 6, 10), date(2026, 6, 15)),
+    ],
+)
+def test_year_inference_picks_nearest(text: str, read_on: date, expected: date) -> None:
+    """Data bez roku trafia w najbliższy rok — w obie strony przez przełom roku."""
+    days = parse_menu(
+        f"<p><strong>poniedziałek {text}</strong></p><p>zupa</p>", read_on
+    )
+    assert next(iter(days)) == expected

@@ -1,0 +1,57 @@
+name: Moja szkoła nie działa
+description: Inna szkoła na loca.pl — jadłospis nie jest znajdowany lub źle parsowany.
+labels: ["nowa szkoła"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Każda szkoła publikuje jadłospis trochę inaczej. Żeby dodać obsługę
+        Twojej, potrzebuję wiedzieć, **gdzie** leży jadłospis i **jak** wygląda.
+
+        Pomoże skrypt diagnostyczny — nie wysyła niczego na zewnątrz:
+        ```bash
+        pip install -r requirements-test.txt
+        cp .env.example .env    # wpisz adres, e-mail i hasło
+        python3 scripts/explore.py
+        ```
+
+        **Zrzuty w `dump/` zawierają dane Twojego dziecka.** Wklej tylko to,
+        o co proszę poniżej, i zamaskuj resztę.
+
+  - type: input
+    id: adres
+    attributes:
+      label: Adres e-Stołówki
+      placeholder: https://twojaszkola.loca.pl
+    validations:
+      required: true
+
+  - type: textarea
+    id: wynik_skryptu
+    attributes:
+      label: Wynik `scripts/explore.py`
+      description: Lista odwiedzonych adresów i to, czy coś rozpoznał jako jadłospis.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: adres_jadlospisu
+    attributes:
+      label: Adres strony z jadłospisem
+      description: Zalogowany w przeglądarce, wejdź na jadłospis i skopiuj adres z paska.
+      placeholder: https://twojaszkola.loca.pl/sites/jadlospis-...
+    validations:
+      required: true
+
+  - type: textarea
+    id: html
+    attributes:
+      label: Fragment HTML jadłospisu
+      description: |
+        Na stronie z jadłospisem: prawy przycisk → Zbadaj, znajdź element
+        obejmujący jadłospis, prawy przycisk → Copy → Copy outerHTML.
+        Wystarczą dwa dni. Usuń wszystko poza samym jadłospisem.
+      render: html
+    validations:
+      required: true

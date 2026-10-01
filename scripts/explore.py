@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import hashlib
 import os
 import sys
+from datetime import date
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -33,7 +35,11 @@ from conftest import load_component
 
 load_component()
 
-from e_stolowka_standalone.api import LocaClient, parse_menu  # noqa: E402
+from e_stolowka_standalone.api import (  # noqa: E402
+    LocaClient,
+    MenuDay,
+    parse_menu,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 DUMP = ROOT / "dump"
@@ -61,11 +67,16 @@ def load_env() -> None:
 
 
 def _slug(url: str) -> str:
-    """Nazwa pliku dla zrzutu strony."""
-    path = urlparse(url).path.strip("/") or "index"
-    query = urlparse(url).query
-    name = f"{path}__{query}" if query else path
-    return "".join(c if c.isalnum() or c in "-_" else "_" for c in name)[:120] + ".html"
+    """Nazwa pliku dla zrzutu strony.
+
+    Adresy deklaracji bywają dłuższe niż limit nazwy pliku i różnią się dopiero
+    na końcu, więc do skróconej nazwy dopinamy skrót całego adresu.
+    """
+    parts = urlparse(url)
+    name = f"{parts.path.strip('/') or 'index'}__{parts.query}".rstrip("_")
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+    digest = hashlib.sha1(url.encode()).hexdigest()[:8]
+    return f"{safe[:100]}-{digest}.html"
 
 
 async def main() -> int:
@@ -85,7 +96,7 @@ async def main() -> int:
         host = urlparse(base).hostname
         queue: list[str] = [base + "/"]
         seen: set[str] = set()
-        found: list[tuple[str, int]] = []
+        found: list[tuple[str, dict[date, MenuDay]]] = []
 
         while queue and len(seen) < MAX_PAGES:
             url = queue.pop(0)
@@ -111,7 +122,7 @@ async def main() -> int:
             flag = f"JADŁOSPIS: {len(days)} dni" if days else ""
             print(f"  {url}  [{title}] {flag}")
             if days:
-                found.append((url, len(days)))
+                found.append((url, days))
 
             for link in soup.select("a[href]"):
                 nxt = urljoin(url, str(link["href"])).split("#")[0]
@@ -125,9 +136,8 @@ async def main() -> int:
             return 1
 
         print("\nStrony z jadłospisem:")
-        for url, count in sorted(found, key=lambda item: -item[1]):
-            print(f"  {url}  ({count} dni)")
-            menu_by_day = parse_menu((DUMP / _slug(url)).read_text())
+        for url, menu_by_day in sorted(found, key=lambda item: -len(item[1])):
+            print(f"  {url}  ({len(menu_by_day)} dni)")
             for day, menu in sorted(menu_by_day.items()):
                 print(f"    {day}: {', '.join(menu.dishes)[:100]}")
         return 0

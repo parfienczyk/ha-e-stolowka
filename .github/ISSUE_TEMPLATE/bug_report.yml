@@ -1,0 +1,73 @@
+name: Błąd
+description: Integracja nie działa albo działa inaczej, niż opisuje README.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Zanim wyślesz — usuń dane osobowe
+
+        Logi i zrzuty stron z e-Stołówki zawierają **imię i nazwisko dziecka,
+        klasę oraz rozliczenia**. Zamaskuj je. Nigdy nie wklejaj hasła ani
+        zawartości pliku `.env`.
+
+  - type: textarea
+    id: opis
+    attributes:
+      label: Co się dzieje
+      description: Co zobaczyłeś i czego się spodziewałeś.
+      placeholder: |
+        Sensor „Jadłospis na dziś" ma stan `unavailable`, choć na stronie
+        szkoły jadłospis na dziś jest opublikowany.
+    validations:
+      required: true
+
+  - type: input
+    id: adres
+    attributes:
+      label: Adres e-Stołówki
+      description: Sama domena — bez loginu i hasła.
+      placeholder: https://twojaszkola.loca.pl
+    validations:
+      required: true
+
+  - type: input
+    id: wersja_integracji
+    attributes:
+      label: Wersja integracji
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: wersja_ha
+    attributes:
+      label: Wersja Home Assistanta
+      description: Ustawienia → System → Naprawy → ⋮ → Informacje o systemie.
+      placeholder: 2026.2.3
+    validations:
+      required: true
+
+  - type: textarea
+    id: logi
+    attributes:
+      label: Log
+      description: |
+        Włącz szczegółowy log, dodając w `configuration.yaml`:
+        ```yaml
+        logger:
+          logs:
+            custom_components.e_stolowka: debug
+        ```
+        Zrestartuj HA, przeładuj integrację i wklej fragment z `home-assistant.log`.
+      render: text
+
+  - type: checkboxes
+    id: potwierdzenia
+    attributes:
+      label: Potwierdzenia
+      options:
+        - label: Sprawdziłem, że jadłospis jest widoczny po zalogowaniu w przeglądarce.
+          required: true
+        - label: Usunąłem z treści zgłoszenia dane osobowe i hasła.
+          required: true

@@ -8,7 +8,12 @@ from pathlib import Path
 from typing import Any, Self
 
 import pytest
-from e_stolowka_standalone.api import LocaAuthError, LocaClient, LocaParseError
+from e_stolowka_standalone.api import (
+    LocaAuthError,
+    LocaClient,
+    LocaConnectionError,
+    LocaParseError,
+)
 
 BASE = "https://szkola.loca.pl"
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -173,3 +178,35 @@ def test_real_page_end_to_end() -> None:
 
     assert list(days) == [date(2026, 9, 28), date(2026, 9, 29)]
     assert days[date(2026, 9, 29)].dishes[0] == "Skyr owocowy (mleko)"
+
+
+def test_week_start_from_url_is_passed_to_parser() -> None:
+    """Dzień bez daty w treści jest rozpoznany dzięki tygodniowi z adresu."""
+    session = FakeSession(
+        {
+            f"{BASE}/sites/zobacz_wiadomosci": NEWS,
+            MENU_28: (
+                '<body class="logged"><main>'
+                "<p><strong>ŚRODA</strong></p><p>zupa pomidorowa</p>"
+                "</main></body>"
+            ),
+        }
+    )
+    days = asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))
+
+    assert list(days) == [date(2026, 9, 30)]
+
+
+def test_parse_error_wins_over_connection_error() -> None:
+    """Gdy jedna ścieżka pada, a druga wczytuje się bez jadłospisu — mów o tym."""
+
+    class PartlyBrokenSession(FakeSession):
+        def get(self, url: str, **kwargs: Any) -> FakeResponse:
+            if url.endswith("/sites/zobacz_wiadomosci"):
+                raise LocaConnectionError("404")
+            return super().get(url, **kwargs)
+
+    session = PartlyBrokenSession({f"{BASE}/": '<body class="logged"></body>'})
+
+    with pytest.raises(LocaParseError, match="nie zawiera wpisów z jadłospisem"):
+        asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))

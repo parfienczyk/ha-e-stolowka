@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Pytanie o konfigurację
+    url: https://github.com/parfienczyk/ha-e-stolowka/discussions
+    about: Nie wiesz, jak coś ustawić? Zapytaj w Dyskusjach — to nie błąd.
