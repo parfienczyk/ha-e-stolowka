@@ -103,29 +103,47 @@ Wariant dietetyczny pokażesz, czytając atrybut `dieta` zamiast `potrawy`.
 > linie spacjami, przez co punkty listy zlewają się w jeden akapit z myślnikami
 > w środku zdania.
 
-**Mniejszy tekst.** Karta markdown nie ma własnej opcji rozmiaru czcionki.
-Z [card_mod](https://github.com/thomasloven/lovelace-card-mod) (HACS → Frontend)
-zmniejszysz też nagłówek:
+Powyższy YAML wklej przez **Show code editor** w konfiguracji karty. Jeśli
+wolisz wizualny edytor, w pole **Content** wklej samą treść — bez linii
+`type:`, `title:` i `content: |` — i **dosuń ją do lewej krawędzi**. Listy
+markdown muszą zaczynać się w pierwszej kolumnie: wcięcie zamienia punkt
+w zagnieżdżony podpunkt, a nagłówek wciąga do poprzedniego punktu.
+
+**Mniejszy tekst i kolory.** Karta markdown nie ma opcji rozmiaru czcionki,
+a `style="..."` nic nie da: Home Assistant przepuszcza treść przez bibliotekę
+[`xss`](https://github.com/leizongmin/js-xss) z domyślną białą listą, w której
+`div`, `span` i `ul` mają **pustą listę dozwolonych atrybutów**. Przechodzą za to
+`<small>` oraz `<font>` z atrybutami `color`, `size` i `face`:
+
+```yaml
+type: markdown
+title: Stołówka
+content: |
+  {% set dzis = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') or [] %}
+  {% set jutro = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'potrawy') or [] %}
+  <font size="2"><b><font color="tomato">Dziś:</font></b></font>
+  <ul>
+  {% for p in dzis %}<li><font size="2">{{ p }}</font></li>{% else %}<li><font size="2"><i>brak jadłospisu</i></font></li>{% endfor %}
+  </ul>
+  <font size="2"><b><font color="tomato">Jutro:</font></b></font>
+  <ul>
+  {% for p in jutro %}<li><font size="2">{{ p }}</font></li>{% else %}<li><font size="2"><i>brak jadłospisu</i></font></li>{% endfor %}
+  </ul>
+```
+
+`size` przyjmuje wartości 1–7, gdzie 3 jest domyślna — `2` daje mniejszy tekst,
+`1` najmniejszy. Zamiast tego można użyć `<small>`, a `<small><small>` zmniejsza
+dwustopniowo. Ta wersja jest też odporna na wcięcia, bo nie korzysta z list
+markdown.
+
+Tytuł karty pozostaje duży — to nagłówek, nie treść. Zmniejszysz go tylko przez
+[card_mod](https://github.com/thomasloven/lovelace-card-mod) (HACS → Frontend):
 
 ```yaml
 card_mod:
   style: |
-    ha-card { font-size: 13px; line-height: 1.45; }
+    ha-card { font-size: 13px; }
     ha-card .card-header { font-size: 20px; padding-bottom: 4px; }
-```
-
-Bez dodatków wystarczy opakować treść w `<div>` — puste linie wokół są
-konieczne, inaczej markdown w środku nie zostanie sparsowany:
-
-```yaml
-content: |
-  <div style="font-size: 0.85em; line-height: 1.45">
-
-  **Dziś:**
-
-  - {{ state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') | join('\n- ') }}
-
-  </div>
 ```
 
 ### Przykład automatyzacji
