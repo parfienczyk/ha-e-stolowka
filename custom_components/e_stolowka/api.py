@@ -13,7 +13,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from bs4 import BeautifulSoup, Tag
@@ -166,7 +166,8 @@ class LocaClient:
         )
         if _is_logged_out(html):
             raise LocaAuthError("Odrzucono logowanie — sprawdź e-mail i hasło")
-        _LOGGER.debug("Zalogowano w e-Stołówce jako %s", self._email)
+        # Bez adresu e-mail: logi debug trafiają do publicznych zgłoszeń.
+        _LOGGER.debug("Zalogowano w e-Stołówce (%s)", self._base)
 
     async def async_get_menu(self, today: date | None = None) -> dict[date, MenuDay]:
         """Zwróć jadłospis na bieżący i najbliższy tydzień, kluczowany datą.
@@ -273,6 +274,7 @@ def find_menu_links(html: str, base_url: str) -> list[MenuLink]:
     wymaga pobierania wszystkich wpisów.
     """
     soup = BeautifulSoup(html, "html.parser")
+    host = urlparse(base_url).hostname
     links: dict[str, MenuLink] = {}
     for anchor in soup.select("a[href]"):
         href = str(anchor["href"])
@@ -282,7 +284,16 @@ def find_menu_links(html: str, base_url: str) -> list[MenuLink]:
         start, end = _slug_date(match.group(1)), _slug_date(match.group(2))
         if start is None or end is None or end < start:
             continue
+
         url = urljoin(base_url + "/", href)
+        parts = urlparse(url)
+        # Odnośniki pochodzą z treści serwisu, więc traktujemy je jak dane
+        # niezaufane: bez tego sprawdzenia spreparowany wpis kazałby Home
+        # Assistantowi odpytać dowolny host z sieci domowej użytkownika.
+        if parts.scheme not in ("http", "https") or parts.hostname != host:
+            _LOGGER.debug("Pomijam odnośnik spoza %s: %s", host, url)
+            continue
+
         links[url] = MenuLink(url=url, start=start, end=end)
     return sorted(links.values(), key=lambda link: link.start)
 

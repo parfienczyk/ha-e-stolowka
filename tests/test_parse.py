@@ -210,3 +210,17 @@ def test_year_inference_picks_nearest(text: str, read_on: date, expected: date) 
         f"<p><strong>poniedziałek {text}</strong></p><p>zupa</p>", read_on
     )
     assert next(iter(days)) == expected
+
+
+def test_rejects_menu_links_from_other_hosts() -> None:
+    """Odnośnik na obcy host nie jest pobierany — treść serwisu jest niezaufana."""
+    html = (
+        '<a href="/sites/jadlospis-280926-021026,1946">ok</a>'
+        '<a href="https://evil.example.com/sites/jadlospis-010126-020126,9">zły</a>'
+        '<a href="//evil.example.com/sites/jadlospis-030126-040126,8">zły</a>'
+        '<a href="javascript:alert(1)/sites/jadlospis-050126-060126,7">zły</a>'
+    )
+    links = find_menu_links(html, BASE)
+    assert [link.url for link in links] == [
+        f"{BASE}/sites/jadlospis-280926-021026,1946"
+    ]

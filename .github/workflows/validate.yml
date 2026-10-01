@@ -31,13 +31,18 @@ jobs:
           ignore: brands
 
   pytest:
-    name: pytest
+    name: pytest (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.13 to minimum Home Assistanta 2026.2, 3.14 wymagają wydania 2026.9+.
+        python: ["3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
       - run: pip install -r requirements-test.txt
       - run: pytest tests/ -q
 

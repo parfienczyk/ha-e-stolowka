@@ -5,6 +5,22 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Bezpieczeństwo
+
+- Odnośniki do jadłospisu wykryte w treści serwisu muszą teraz wskazywać ten sam
+  host, co skonfigurowany adres szkoły. Wcześniej spreparowany wpis w serwisie
+  mógł skłonić Home Assistanta do odpytania dowolnego hosta z sieci domowej
+  użytkownika (ciasteczka sesji i tak by nie wyciekły — słoik aiohttp jest
+  związany z domeną — ale samo żądanie było wysyłane).
+- Log diagnostyczny nie zawiera już adresu e-mail. Logi `debug` bywają wklejane
+  do publicznych zgłoszeń.
+
+### Dodane
+
+- Karta Lovelace (`lovelace/e-stolowka-card.js`) z edytorem wizualnym.
+- Testy uruchamiane na Pythonie 3.13 i 3.14; Dependabot pilnuje wersji akcji
+  i zależności testowych.
+
 ## [0.1.0] — pierwsza wersja
 
 Pierwsze wydanie. Integracja pobiera jadłospis szkolnej stołówki z platformy
