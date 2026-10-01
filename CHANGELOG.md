@@ -5,6 +5,8 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.2.0] — 2026-10-01
+
 ### Bezpieczeństwo
 
 - Odnośniki do jadłospisu wykryte w treści serwisu muszą teraz wskazywać ten sam
@@ -46,5 +48,6 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.1.0...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/parfienczyk/ha-e-stolowka/releases/tag/v0.1.0
