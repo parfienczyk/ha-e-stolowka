@@ -10,7 +10,10 @@ CONF_BASE_URL = "base_url"
 CONF_UPDATE_HOURS = "update_hours"
 
 DEFAULT_BASE_URL = "https://sobolewosp.loca.pl"
-DEFAULT_UPDATE_HOURS = 6
+# Jadłospis publikowany jest raz w tygodniu, a encje „dziś” i „jutro”
+# przeliczają się o północy niezależnie od odpytywania, więc częstsze
+# pytanie obciąża serwer szkoły, nic nie wnosząc.
+DEFAULT_UPDATE_HOURS = 24
 MIN_UPDATE_INTERVAL = timedelta(hours=1)
 
 # Jadłospis publikowany jest jako wpis w aktualnościach, więc startujemy od

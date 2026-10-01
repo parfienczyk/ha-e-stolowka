@@ -58,8 +58,8 @@ w swojej instalacji i zrestartuj Home Assistanta.
 | E-mail | ten sam, którym logujesz się jako rodzic |
 | Hasło | hasło do konta rodzica |
 
-Częstotliwość odświeżania zmienisz w **Opcjach** integracji (domyślnie co 6 godzin,
-minimum 1 godzina — jadłospis zmienia się rzadko, nie ma po co obciążać serwera szkoły).
+Częstotliwość odświeżania zmienisz w **Opcjach** integracji (domyślnie raz na dobę,
+zakres 1–24 godziny — jadłospis zmienia się rzadko, nie ma po co obciążać serwera szkoły).
 
 ## Encje
 

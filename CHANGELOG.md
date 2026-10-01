@@ -5,6 +5,17 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.3.0] — 2026-10-01
+
+### Zmienione
+
+- Domyślna częstotliwość odpytywania to teraz **raz na dobę**, nie co 6 godzin.
+  Jadłospis publikowany jest raz w tygodniu, a encje „dziś” i „jutro” przeliczają
+  się o północy niezależnie od odpytywania — częstsze pytanie obciążało serwer
+  szkoły, nic nie wnosząc. Jeśli nie ustawiałeś tej opcji ręcznie, po aktualizacji
+  Twoja instalacja przejdzie na dobowy interwał. Zakres w Opcjach pozostaje 1–24
+  godziny.
+
 ## [0.2.0] — 2026-10-01
 
 ### Bezpieczeństwo
@@ -48,6 +59,7 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.2.0...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/parfienczyk/ha-e-stolowka/releases/tag/v0.1.0
