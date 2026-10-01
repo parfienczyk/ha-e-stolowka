@@ -6,7 +6,7 @@
  * (`sensor.<szkoła>_jadlospis_tygodniowy`) i jego atrybut `dni`.
  */
 
-const NAZWY_DNI = [
+const WEEKDAY_NAMES = [
   "Niedziela",
   "Poniedziałek",
   "Wtorek",
@@ -16,48 +16,50 @@ const NAZWY_DNI = [
   "Sobota",
 ];
 
-const MIESIACE_SKROT = [
+const MONTH_ABBREVIATIONS = [
   "sty", "lut", "mar", "kwi", "maj", "cze",
   "lip", "sie", "wrz", "paź", "lis", "gru",
 ];
 
 /** Data „dziś" w lokalnej strefie, w formacie klucza atrybutu `dni`. */
-function isoDzis() {
-  const d = new Date();
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
+const isoToday = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
 
 /** Data z klucza ISO jako obiekt Date w lokalnej strefie (bez przesunięcia UTC). */
-function zIso(iso) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
+const fromIso = (iso) => {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
 
 /** Poniedziałek i niedziela tygodnia, w którym leży podana data. */
-function granice(iso) {
-  const d = zIso(iso);
-  const dzien = (d.getDay() + 6) % 7; // 0 = poniedziałek
-  const od = new Date(d);
-  od.setDate(d.getDate() - dzien);
-  const do_ = new Date(d);
-  do_.setDate(d.getDate() + (6 - dzien));
-  const p = (n) => String(n).padStart(2, "0");
-  const fmt = (x) => `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`;
-  return [fmt(od), fmt(do_)];
-}
+const weekBounds = (iso) => {
+  const date = fromIso(iso);
+  const weekday = (date.getDay() + 6) % 7; // 0 = poniedziałek
+  const start = new Date(date);
+  start.setDate(date.getDate() - weekday);
+  const end = new Date(date);
+  end.setDate(date.getDate() + (6 - weekday));
+  const pad = (value) => String(value).padStart(2, "0");
+  const format = (value) =>
+    `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  return [format(start), format(end)];
+};
 
 /** Rozdziel „nazwa dania (alergeny)" na nazwę i alergeny. */
-function rozdziel(potrawa) {
-  const m = potrawa.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-  return m ? { nazwa: m[1], alergeny: m[2] } : { nazwa: potrawa, alergeny: "" };
-}
+const splitDish = (dish) => {
+  const match = dish.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+  return match
+    ? { name: match[1], allergens: match[2] }
+    : { name: dish, allergens: "" };
+};
 
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({
+const escapeHtml = (value) =>
+  String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[c]);
-}
+  })[char]);
 
 const STYLE = `
   :host {
@@ -155,7 +157,7 @@ class EStolowkaCard extends HTMLElement {
   /** Szkielet dla wyszukiwarki kart — podpowiada pierwszy pasujący sensor. */
   static getStubConfig(hass) {
     const entity = Object.keys(hass?.states || {}).find(
-      (e) => e.startsWith("sensor.") && e.endsWith("_jadlospis_tygodniowy")
+      (entityId) => entityId.startsWith("sensor.") && entityId.endsWith("_jadlospis_tygodniowy")
     );
     return { type: "custom:e-stolowka-card", entity: entity || "" };
   }
@@ -191,105 +193,111 @@ class EStolowkaCard extends HTMLElement {
   }
 
   /** Dni do pokazania, już przefiltrowane i posortowane. */
-  _dni() {
-    if (!this._config.entity) return { lista: [], brakEncji: false };
-    const stan = this._hass?.states?.[this._config.entity];
-    const dni = stan?.attributes?.dni;
-    if (!dni) return { lista: [], brakEncji: !stan };
+  _visibleDays() {
+    if (!this._config.entity) return { days: [], missingEntity: false };
+    const state = this._hass?.states?.[this._config.entity];
+    const menuByDate = state?.attributes?.dni;
+    if (!menuByDate) return { days: [], missingEntity: !state };
 
-    const dzis = isoDzis();
-    const [od, do_] = granice(dzis);
-    const lista = Object.keys(dni)
+    const today = isoToday();
+    const [weekStart, weekEnd] = weekBounds(today);
+    const days = Object.keys(menuByDate)
       .sort()
-      .filter((d) => {
+      .filter((dateKey) => {
         if (this._config.range === "all") return true;
-        if (this._config.range === "today") return d === dzis;
-        return d >= od && d <= do_;
+        if (this._config.range === "today") return dateKey === today;
+        return dateKey >= weekStart && dateKey <= weekEnd;
       })
-      .map((data) => ({ data, ...dni[data] }));
-    return { lista, brakEncji: false };
+      .map((dateKey) => ({
+        date: dateKey,
+        dishes: menuByDate[dateKey].potrawy || [],
+        diet: menuByDate[dateKey].dieta || [],
+      }));
+    return { days, missingEntity: false };
   }
 
-  _podtytul(lista) {
-    if (lista.length === 0) return "";
-    const a = zIso(lista[0].data);
-    const b = zIso(lista[lista.length - 1].data);
-    const f = (d) => `${d.getDate()} ${MIESIACE_SKROT[d.getMonth()]}`;
-    return lista.length === 1 ? f(a) : `${f(a)} – ${f(b)}`;
+  _subtitle(days) {
+    if (days.length === 0) return "";
+    const first = fromIso(days[0].date);
+    const last = fromIso(days[days.length - 1].date);
+    const format = (date) => `${date.getDate()} ${MONTH_ABBREVIATIONS[date.getMonth()]}`;
+    return days.length === 1 ? format(first) : `${format(first)} – ${format(last)}`;
   }
 
   _render() {
     if (!this.shadowRoot || !this._config || !this._hass) return;
 
-    const { lista, brakEncji } = this._dni();
-    const brakKonfiguracji = !this._config.entity;
-    const dzis = isoDzis();
+    const { days, missingEntity } = this._visibleDays();
+    const missingConfig = !this._config.entity;
+    const today = isoToday();
 
-    const naglowek = `
+    const header = `
       <div class="header">
         <div class="icon-badge"><ha-icon icon="mdi:silverware-fork-knife"></ha-icon></div>
         <div class="title-block">
-          <div class="title">${esc(this._config.title)}</div>
-          <div class="subtitle">${esc(this._podtytul(lista))}</div>
+          <div class="title">${escapeHtml(this._config.title)}</div>
+          <div class="subtitle">${escapeHtml(this._subtitle(days))}</div>
         </div>
       </div>`;
 
-    let tresc;
-    if (brakKonfiguracji) {
-      tresc = this._pusto("mdi:cog-outline", "Wybierz encję",
+    let body;
+    if (missingConfig) {
+      body = this._emptyState("mdi:cog-outline", "Wybierz encję",
         "Wskaż sensor tygodniowy integracji e-Stołówka.");
-    } else if (brakEncji) {
-      tresc = this._pusto("mdi:alert-circle-outline", "Nie znaleziono encji",
+    } else if (missingEntity) {
+      body = this._emptyState("mdi:alert-circle-outline", "Nie znaleziono encji",
         this._config.entity);
-    } else if (lista.length === 0) {
-      tresc = this._pusto("mdi:silverware-clean", "Brak jadłospisu",
+    } else if (days.length === 0) {
+      body = this._emptyState("mdi:silverware-clean", "Brak jadłospisu",
         "Na ten okres nie opublikowano jeszcze menu.");
     } else {
-      tresc = `<div class="days">${lista.map((d) => this._dzien(d, dzis)).join("")}</div>`;
+      body = `<div class="days">${days.map((day) => this._renderDay(day, today)).join("")}</div>`;
     }
 
-    this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card>${naglowek}${tresc}</ha-card>`;
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card>${header}${body}</ha-card>`;
   }
 
-  _dzien(dzien, dzis) {
-    const d = zIso(dzien.data);
-    const dzisiaj = dzien.data === dzis;
-    const potrawy = (dzien.potrawy || [])
-      .map((p) => {
-        const { nazwa, alergeny } = rozdziel(p);
-        const a = alergeny ? ` <span class="allergens">${esc(alergeny)}</span>` : "";
-        return `<div class="dish"><span class="dot"></span><span class="name">${esc(nazwa)}${a}</span></div>`;
+  _renderDay(day, today) {
+    const date = fromIso(day.date);
+    const isToday = day.date === today;
+    const dishes = day.dishes
+      .map((dish) => {
+        const { name, allergens } = splitDish(dish);
+        const allergenMarkup = allergens
+          ? ` <span class="allergens">${escapeHtml(allergens)}</span>`
+          : "";
+        return `<div class="dish"><span class="dot"></span><span class="name">${escapeHtml(name)}${allergenMarkup}</span></div>`;
       })
       .join("");
 
-    const dieta = this._config.show_diet && (dzien.dieta || []).length
-      ? `<div class="diet">${dzien.dieta
-          .map((x) => `<span class="chip">${esc(x)}</span>`)
+    const diet = this._config.show_diet && day.diet.length
+      ? `<div class="diet">${day.diet
+          .map((variant) => `<span class="chip">${escapeHtml(variant)}</span>`)
           .join("")}</div>`
       : "";
 
     return `
-      <div class="day${dzisiaj ? " today" : ""}">
+      <div class="day${isToday ? " today" : ""}">
         <div class="day-head">
-          <span>${NAZWY_DNI[d.getDay()]}</span>
-          <span class="date">${d.getDate()} ${MIESIACE_SKROT[d.getMonth()]}</span>
-          ${dzisiaj ? '<span class="pill">dziś</span>' : ""}
+          <span>${WEEKDAY_NAMES[date.getDay()]}</span>
+          <span class="date">${date.getDate()} ${MONTH_ABBREVIATIONS[date.getMonth()]}</span>
+          ${isToday ? '<span class="pill">dziś</span>' : ""}
         </div>
-        <div class="dishes">${potrawy}</div>
-        ${dieta}
+        <div class="dishes">${dishes}</div>
+        ${diet}
       </div>`;
   }
 
-  _pusto(ikona, t1, t2) {
+  _emptyState(icon, title, detail) {
     return `<div class="empty">
-      <ha-icon icon="${ikona}"></ha-icon>
-      <div class="t1">${esc(t1)}</div>
-      <div class="t2">${esc(t2)}</div>
+      <ha-icon icon="${icon}"></ha-icon>
+      <div class="t1">${escapeHtml(title)}</div>
+      <div class="t2">${escapeHtml(detail)}</div>
     </div>`;
   }
 }
 
-const SCHEMAT = [
+const SCHEMA = [
   {
     name: "entity",
     required: true,
@@ -313,7 +321,7 @@ const SCHEMAT = [
   { name: "compact", selector: { boolean: {} } },
 ];
 
-const ETYKIETY = {
+const LABELS = {
   entity: "Sensor tygodniowy",
   title: "Tytuł karty",
   range: "Zakres dni",
@@ -337,11 +345,11 @@ class EStolowkaCardEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     if (!this._form) {
       this._form = document.createElement("ha-form");
-      this._form.computeLabel = (s) => ETYKIETY[s.name] || s.name;
-      this._form.addEventListener("value-changed", (ev) => {
+      this._form.computeLabel = (schema) => LABELS[schema.name] || schema.name;
+      this._form.addEventListener("value-changed", (event) => {
         this.dispatchEvent(
           new CustomEvent("config-changed", {
-            detail: { config: ev.detail.value },
+            detail: { config: event.detail.value },
             bubbles: true,
             composed: true,
           })
@@ -350,7 +358,7 @@ class EStolowkaCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
-    this._form.schema = SCHEMAT;
+    this._form.schema = SCHEMA;
     this._form.data = this._config;
   }
 }
