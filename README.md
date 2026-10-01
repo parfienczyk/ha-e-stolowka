@@ -146,6 +146,47 @@ card_mod:
     ha-card .card-header { font-size: 20px; padding-bottom: 4px; }
 ```
 
+### Przykład karty tygodniowej
+
+Sensor tygodniowy trzyma w atrybucie `dni` słownik `data → {potrawy, dieta,
+jadlospis}`, kluczowany datą ISO. Integracja pobiera bieżący tydzień i następny,
+żeby „jutro" działało także w piątek, więc karta filtruje dni do bieżącego
+tygodnia. Dzisiejszy dzień jest wyróżniony kolorem:
+
+```yaml
+type: markdown
+title: Jadłospis tygodniowy
+content: |
+  {% set dni = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_tygodniowy', 'dni') or {} %}
+  {% set nazwy = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'] %}
+  {% set dzis = now().date() %}
+  {% set od = (dzis - timedelta(days=dzis.weekday())).isoformat() %}
+  {% set do = (dzis + timedelta(days=6 - dzis.weekday())).isoformat() %}
+  {% for data, menu in dni.items() if od <= data <= do %}
+  {% set d = data | as_datetime %}
+  <font size="2"><b><font color="{{ 'tomato' if data == dzis.isoformat() else 'cornflowerblue' }}">{{ nazwy[d.weekday()] }} {{ d.strftime('%d.%m') }}</font></b><br>
+  {% for p in menu.potrawy %}• {{ p }}<br>{% endfor %}</font>
+  {% else %}
+  <font size="2"><i>Brak jadłospisu na ten tydzień.</i></font>
+  {% endfor %}
+```
+
+Żeby pokazać oba pobrane tygodnie, usuń warunek `if od <= data <= do` z pętli.
+Warianty dietetyczne pokażesz, zamieniając `menu.potrawy` na `menu.dieta`.
+
+**Odstępy między wierszami.** `line-height` jest właściwością wyłącznie CSS-ową,
+więc bez `card_mod` nie da się jej zmienić. Powyższa karta używa jednak `<br>`
+zamiast `<ul>`, co usuwa marginesy elementów listy — a to one odpowiadają za
+większość luzu. Pełną kontrolę daje dopiero
+[card_mod](https://github.com/thomasloven/lovelace-card-mod):
+
+```yaml
+card_mod:
+  style: |
+    ha-card { line-height: 1.15; }
+    ha-card .card-header { font-size: 20px; line-height: 1.2; padding-bottom: 4px; }
+```
+
 ### Przykład automatyzacji
 
 ```yaml

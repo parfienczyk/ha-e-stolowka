@@ -23,6 +23,12 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # Check „brands" wymaga, by domena istniała w repozytorium
+          # home-assistant/brands (katalog custom_integrations/e_stolowka).
+          # Obrazy w custom_components/e_stolowka/brand/ tego nie zastępują —
+          # HACS ich nie widzi. Usuń to pominięcie, gdy PR do
+          # home-assistant/brands zostanie scalony.
+          ignore: brands
 
   pytest:
     name: pytest
