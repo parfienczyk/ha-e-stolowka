@@ -80,7 +80,38 @@ W weekendy, święta i ferie żaden wpis nie obejmuje dzisiejszej daty — senso
 mają wtedy stan `unknown`, a `potrawy` są puste. Automatyzacje warto więc zabezpieczyć
 warunkiem, jak w przykładzie niżej.
 
-### Przykład karty
+### Własna karta Lovelace (zalecane)
+
+W katalogu [`lovelace/`](lovelace/) leży gotowa karta — bez kroku budowania,
+bez `card_mod`, bez ograniczeń sanityzatora karty markdown. Wygląda jak karty
+systemowe, sama rozpoznaje tryb ciemny i wyróżnia dzisiejszy dzień.
+
+1. Skopiuj `lovelace/e-stolowka-card.js` do `config/www/`
+2. **Ustawienia → Dashboardy → ⋮ → Zasoby → Dodaj zasób**
+   URL `/local/e-stolowka-card.js`, typ **Moduł JavaScript**
+3. Odśwież przeglądarkę twardo (`Ctrl/Cmd + Shift + R`)
+4. Dodaj kartę — znajdziesz ją w wyszukiwarce jako **e-Stołówka**
+
+Karta ma edytor wizualny: sensor wybierzesz z listy, resztę przełącznikami.
+Przy dodawaniu sama podpowiada pierwszy pasujący sensor tygodniowy. YAML
+poniżej jest więc opcjonalny — dla tych, którzy wolą konfigurację tekstową:
+
+```yaml
+type: custom:e-stolowka-card
+entity: sensor.e_stolowka_sobolewosp_jadlospis_tygodniowy
+title: Stołówka
+range: week      # week (bieżący tydzień) | all (wszystko) | today
+show_diet: false # pokaż warianty dietetyczne jako plakietki
+compact: false   # ciaśniejsze odstępy, bez podtytułu
+```
+
+Alergeny z nawiasów karta wydziela sama i wyświetla przygaszone obok nazwy
+dania. `entity` to sensor **tygodniowy** — on zawiera wszystkie pobrane dni.
+
+> Karta nie instaluje się przez HACS razem z integracją: repozytorium HACS ma
+> jedną kategorię, a ta jest ustawiona na `integration`.
+
+### Przykład karty markdown
 
 ```yaml
 type: markdown
