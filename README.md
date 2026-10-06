@@ -1,6 +1,7 @@
 # e-Stołówka dla Home Assistanta
 
 [![Walidacja](https://github.com/parfienczyk/ha-e-stolowka/actions/workflows/validate.yml/badge.svg)](https://github.com/parfienczyk/ha-e-stolowka/actions/workflows/validate.yml)
+[![Audyt bezpieczeństwa](https://github.com/parfienczyk/ha-e-stolowka/actions/workflows/security-audit.yml/badge.svg)](https://github.com/parfienczyk/ha-e-stolowka/actions/workflows/security-audit.yml)
 [![HACS: repozytorium własne](https://img.shields.io/badge/HACS-repozytorium%20w%C5%82asne-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![Wersja](https://img.shields.io/github/v/release/parfienczyk/ha-e-stolowka?display_name=tag&sort=semver)](https://github.com/parfienczyk/ha-e-stolowka/releases)
 [![Licencja: MIT](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
@@ -219,24 +220,22 @@ card_mod:
     ha-card .card-header { font-size: 20px; line-height: 1.2; padding-bottom: 4px; }
 ```
 
-### Przykład automatyzacji
+### Powiadomienie
 
-```yaml
-automation:
-  - alias: Jadłospis na jutro wieczorem
-    triggers:
-      - trigger: time
-        at: "19:00:00"
-    conditions:
-      - condition: template
-        value_template: >
-          {{ state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'potrawy') | length > 0 }}
-    actions:
-      - action: notify.persistent_notification
-        data:
-          title: Jutro w stołówce
-          message: "{{ state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'jadlospis') }}"
+Blueprint wysyła jadłospis raz dziennie na wybraną encję `notify` (telefon
+z aplikacji Home Assistant albo powiadomienie w panelu). Gdy na ten dzień nie
+ma potraw — weekend, święto, menu jeszcze nieopublikowane — nic nie wychodzi.
+
+HACS go nie instaluje razem z integracją. W Home Assistant wklej adres
+w **Ustawienia → Automatyzacje i sceny → Blueprinty → Importuj blueprint**:
+
+```text
+https://github.com/parfienczyk/ha-e-stolowka/blob/main/blueprints/automation/e_stolowka/powiadomienie_jadlospis.yaml
 ```
+
+Powiadomienie wychodzi o **7:30** z sensora **Jadłospis na dziś**, domyślnie
+tylko w poniedziałek–piątek. Warianty `DIETA:` dopiszesz przełącznikiem
+w konfiguracji blueprintu.
 
 ## Inna szkoła na loca.pl
 

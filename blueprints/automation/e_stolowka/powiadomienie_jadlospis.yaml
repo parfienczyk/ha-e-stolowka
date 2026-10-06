@@ -1,0 +1,91 @@
+blueprint:
+  name: e-Stołówka — powiadomienie o jadłospisie
+  description: >
+    O 7:30 wysyła jadłospis na dziś. W weekendy, święta i gdy szkoła jeszcze
+    nie opublikowała menu powiadomienie jest pomijane.
+  author: Karol Parfienczyk
+  domain: automation
+  homeassistant:
+    min_version: "2025.2.0"
+  source_url: https://github.com/parfienczyk/ha-e-stolowka/blob/main/blueprints/automation/e_stolowka/powiadomienie_jadlospis.yaml
+  input:
+    menu_sensor:
+      name: Sensor jadłospisu
+      description: >
+        Wybierz „Jadłospis na dziś". Sensor tygodniowy nie ma listy potraw
+        na jeden dzień i powiadomienie z niego nie wyjdzie.
+      selector:
+        entity:
+          filter:
+            - integration: e_stolowka
+              domain: sensor
+    notify_target:
+      name: Gdzie wysłać
+      description: >
+        Telefon z aplikacji Home Assistant, powiadomienie w panelu
+        albo inna encja notify.
+      selector:
+        target:
+          entity:
+            - domain: notify
+    weekdays_only:
+      name: Tylko poniedziałek–piątek
+      description: >
+        Liczy się data jadłospisu. Odznacz, jeśli szkoła wydaje obiady
+        także w weekend.
+      default: true
+      selector:
+        boolean: {}
+    include_diet:
+      name: Dopisz warianty dietetyczne
+      description: Osobna sekcja pod spodem, gdy szkoła publikuje dania z przedrostkiem DIETA.
+      default: false
+      selector:
+        boolean: {}
+    title:
+      name: Tytuł
+      description: Puste pole zostawia nazwę sensora, na przykład „Jadłospis na dziś".
+      default: ""
+      selector:
+        text: {}
+
+variables:
+  menu_sensor: !input menu_sensor
+  include_diet: !input include_diet
+  weekdays_only: !input weekdays_only
+  title_input: !input title
+  dishes: "{{ state_attr(menu_sensor, 'potrawy') or [] }}"
+  diet: "{{ state_attr(menu_sensor, 'dieta') or [] }}"
+  menu_date: "{{ state_attr(menu_sensor, 'data') }}"
+  message: >-
+    {{ (dishes + (['', 'Dieta:'] + diet if include_diet and diet else [])) | join('\n') }}
+  notification_title: >-
+    {{ title_input if title_input else state_attr(menu_sensor, 'friendly_name') or 'Stołówka' }}
+
+triggers:
+  - trigger: time
+    at: "07:30:00"
+
+conditions:
+  - condition: template
+    value_template: "{{ dishes | count > 0 }}"
+  - condition: template
+    value_template: >-
+      {% set parts = (menu_date or '').split('-') %}
+      {{ weekdays_only in [false, 'false'] or (
+           parts | count == 3 and now().replace(
+             year=parts[0] | int,
+             month=parts[1] | int,
+             day=parts[2] | int,
+             hour=12, minute=0, second=0, microsecond=0
+           ).isoweekday() <= 5
+         ) }}
+
+actions:
+  - action: notify.send_message
+    target: !input notify_target
+    data:
+      title: "{{ notification_title }}"
+      message: "{{ message }}"
+
+mode: single

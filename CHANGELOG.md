@@ -5,6 +5,11 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Dodane
+
+- Blueprint automatyzacji: o 7:30 powiadomienie z jadłospisem na dziś.
+  Pomija dni bez menu i, domyślnie, weekendy.
+
 ## [0.3.1] — 2026-10-06
 
 ### Naprawione
