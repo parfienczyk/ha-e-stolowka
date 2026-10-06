@@ -5,6 +5,8 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.4.0] — 2026-10-06
+
 ### Dodane
 
 - Blueprint automatyzacji: o 7:30 powiadomienie z jadłospisem na dziś.
@@ -73,7 +75,8 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.1...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.1.0...v0.2.0
