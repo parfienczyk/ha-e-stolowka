@@ -53,3 +53,46 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/ruff-action@v4.1.0
       - run: ruff format --check .
+
+  bandit:
+    name: bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install bandit
+      # -ll: średni i wysoki poziom. Testy pomijamy — mają atrapy tokenów.
+      - run: bandit -r custom_components scripts -ll
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3.0.0
+        env:
+          # Konto osobiste nie wymaga GITLEAKS_LICENSE. Przy przeniesieniu
+          # repozytorium do organizacji skan padnie z prośbą o klucz.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  home-assistant:
+    name: import (Home Assistant)
+    # Instalacja HA jest ciężka, a psuje się głównie przy nowym wydaniu,
+    # nie przy każdym commicie. Parser i tak jest sprawdzany w pytest.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          # 3.14, bo bieżące wydania HA (2026.9+) już nie wstają na 3.13.
+          python-version: "3.14"
+      - run: pip install homeassistant
+      - run: python -c "import custom_components.e_stolowka"

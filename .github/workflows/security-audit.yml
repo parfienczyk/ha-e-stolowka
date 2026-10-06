@@ -1,0 +1,25 @@
+name: Security audit
+
+# Cotygodniowy audyt zależności. Nowe CVE pojawia się bez commita, więc
+# validate.yml go nie zobaczy. Bandit i gitleaks są tam, przy każdym pushu.
+on:
+  schedule:
+    # Poniedziałek 07:00 czasu polskiego (05:00 UTC), godzinę po validate.yml.
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          # requirements-test.txt pokrywa zależności runtime (beautifulsoup4,
+          # aiohttp) i testowe. Sam pakiet pip w środowisku akcji nie jest
+          # audytowany — ma własne CVE i nie jedzie z integracją.
+          inputs: requirements-test.txt

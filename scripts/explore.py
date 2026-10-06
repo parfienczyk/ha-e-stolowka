@@ -75,7 +75,9 @@ def _slug(url: str) -> str:
     parts = urlparse(url)
     name = f"{parts.path.strip('/') or 'index'}__{parts.query}".rstrip("_")
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
-    digest = hashlib.sha1(url.encode()).hexdigest()[:8]
+    # Skrót nazwy pliku, nie zabezpieczenie — usedforsecurity=False, żeby
+    # audyt nie brał SHA-1 za hashowanie haseł.
+    digest = hashlib.sha1(url.encode(), usedforsecurity=False).hexdigest()[:8]
     return f"{safe[:100]}-{digest}.html"
 
 

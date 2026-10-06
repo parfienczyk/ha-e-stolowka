@@ -82,17 +82,20 @@ class FakeSession:
         self.logged_in = logged_in
         self.login_attempts = 0
         self.requested: list[str] = []
+        self.calls: list[dict[str, Any]] = []
         self.login_succeeds = True
 
-    def get(self, url: str, **_: Any) -> FakeResponse:
+    def get(self, url: str, **kwargs: Any) -> FakeResponse:
         """Zwróć stronę albo ekran logowania, gdy sesja wygasła."""
+        self.calls.append(kwargs)
         self.requested.append(url)
         if not self.logged_in:
             return FakeResponse(LOGIN_PAGE)
         return FakeResponse(self.pages.get(url, '<body class="logged"></body>'))
 
-    def post(self, url: str, **_: Any) -> FakeResponse:
+    def post(self, url: str, **kwargs: Any) -> FakeResponse:
         """Obsłuż logowanie."""
+        self.calls.append(kwargs)
         self.requested.append(f"POST {url}")
         self.login_attempts += 1
         if self.login_succeeds:
@@ -104,6 +107,15 @@ class FakeSession:
 def _client(session: FakeSession) -> LocaClient:
     """Klient wskazujący na atrapę sesji."""
     return LocaClient(session, BASE, "rodzic@example.com", "tajne")
+
+
+def test_every_request_has_a_timeout() -> None:
+    """Żądanie do szkoły nie zostaje bez limitu czasu."""
+    session = FakeSession(PAGES)
+    asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))
+
+    assert session.calls
+    assert all(call.get("timeout") is not None for call in session.calls)
 
 
 def test_picks_week_covering_today() -> None:
