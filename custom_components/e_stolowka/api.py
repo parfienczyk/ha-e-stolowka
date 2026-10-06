@@ -29,7 +29,9 @@ LOGIN_MODULE = "users"
 LOGIN_ACTION = "zaloguj"
 
 # Wpis z jadłospisem: /sites/jadlospis-<od DDMMYY>-<do DDMMYY>,<id>
-_RE_MENU_LINK = re.compile(r"jadlospis-(\d{6})-(\d{6}),(\d+)", re.IGNORECASE)
+# Między datami bywa więcej niż jeden myślnik — CMS zamienia spację wokół
+# pauzy w tytule („05.10.26 - 09.10.26”) na `---`.
+_RE_MENU_LINK = re.compile(r"jadlospis-(\d{6})-+(\d{6}),(\d+)", re.IGNORECASE)
 
 _WEEKDAYS_PL = (
     "poniedziałek",

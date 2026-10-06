@@ -85,6 +85,16 @@ def test_finds_menu_links_with_date_range() -> None:
     assert links[1].url == f"{BASE}/sites/jadlospis-280926-021026,1946"
 
 
+def test_finds_menu_link_when_slug_has_extra_hyphens() -> None:
+    """Spacja wokół myślnika w tytule daje w adresie kilka myślników z rzędu."""
+    html = '<a href="/sites/jadlospis-051026---091026,1982">Czytaj więcej</a>'
+    links = find_menu_links(html, BASE)
+    assert len(links) == 1
+    assert links[0].start == date(2026, 10, 5)
+    assert links[0].end == date(2026, 10, 9)
+    assert links[0].url == f"{BASE}/sites/jadlospis-051026---091026,1982"
+
+
 def test_ignores_posts_that_are_not_menus() -> None:
     """Inne aktualności nie są brane za jadłospis."""
     links = find_menu_links((FIXTURES / "wiadomosci.html").read_text(), BASE)

@@ -22,7 +22,8 @@ sensor.e_stolowka_sobolewosp_jadlospis_na_dzis
 
 Platforma loca.pl nie ma publicznego API, a jadłospis nie ma nawet własnego modułu —
 szkoła publikuje go jako **wpisy w aktualnościach**, po jednym na tydzień, pod adresami
-w rodzaju `/sites/jadlospis-280926-021026,1946`. Zakres dat zapisany jest w samym
+w rodzaju `/sites/jadlospis-280926-021026,1946` (między datami bywa też kilka
+myślników, np. `jadlospis-051026---091026`). Zakres dat zapisany jest w samym
 adresie, więc integracja czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą
 datę (bieżący tydzień i następny, żeby „jutro" działało też w piątek) i tylko je pobiera.
 

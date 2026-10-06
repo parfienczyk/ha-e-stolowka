@@ -5,6 +5,13 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Naprawione
+
+- Wpisy, w których adres ma kilka myślników między datami
+  (`jadlospis-051026---091026`), znów są rozpoznawane. Szkoła tak zapisuje
+  tydzień, gdy w tytule między datami jest spacja (`05.10.26 - 09.10.26`).
+  Bez tego bieżący tydzień wypadał z listy i karta zostawała pusta.
+
 ## [0.3.0] — 2026-10-01
 
 ### Zmienione
