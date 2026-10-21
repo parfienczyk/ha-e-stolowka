@@ -5,6 +5,14 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.4.1] — 2026-10-21
+
+### Naprawione
+
+- Wpisy ze słowem między datami w adresie (`jadlospis-191026-do-231026`)
+  znów są rozpoznawane. Bez tego integracja nie startowała z błędem
+  „Żadna ze stron … nie zawiera wpisów z jadłospisem”.
+
 ## [0.4.0] — 2026-10-06
 
 ### Dodane
@@ -75,7 +83,8 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.0...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.2.0...v0.3.0

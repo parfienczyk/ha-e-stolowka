@@ -95,6 +95,16 @@ def test_finds_menu_link_when_slug_has_extra_hyphens() -> None:
     assert links[0].url == f"{BASE}/sites/jadlospis-051026---091026,1982"
 
 
+def test_finds_menu_link_when_slug_has_word_between_dates() -> None:
+    """Tytuł „19.10.26 do 23.10.26” daje w adresie `-do-` między datami."""
+    html = '<a href="/sites/jadlospis-191026-do-231026,2007">Czytaj więcej</a>'
+    links = find_menu_links(html, BASE)
+    assert len(links) == 1
+    assert links[0].start == date(2026, 10, 19)
+    assert links[0].end == date(2026, 10, 23)
+    assert links[0].url == f"{BASE}/sites/jadlospis-191026-do-231026,2007"
+
+
 def test_ignores_posts_that_are_not_menus() -> None:
     """Inne aktualności nie są brane za jadłospis."""
     links = find_menu_links((FIXTURES / "wiadomosci.html").read_text(), BASE)
