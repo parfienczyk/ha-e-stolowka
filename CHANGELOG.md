@@ -5,6 +5,13 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.5.1] — 2026-11-12
+
+### Naprawione
+
+- Zły port albo urwane IPv6 w adresie strony z jadłospisem pokazują błąd
+  formularza, zamiast wywalać ekran opcji.
+
 ## [0.5.0] — 2026-11-12
 
 ### Dodane
@@ -105,7 +112,8 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.5.0...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.1...v0.4.0
