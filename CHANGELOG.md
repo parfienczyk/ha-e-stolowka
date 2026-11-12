@@ -5,6 +5,8 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.5.0] — 2026-11-12
+
 ### Dodane
 
 - Publiczna strona szkoły jako główne źródło jadłospisu. Dni, których na niej
@@ -103,7 +105,8 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.1...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.3.0...v0.3.1
