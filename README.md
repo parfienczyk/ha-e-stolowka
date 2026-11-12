@@ -7,9 +7,9 @@
 [![Licencja: MIT](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
 
 **Jadłospis szkolnej stołówki w Home Assistancie.** Integracja czyta menu
-z platformy **e-Stołówka** ([loca.pl](https://loca.pl)) i udostępnia je jako encje:
-na dziś, na jutro i na cały pobrany tydzień — razem z alergenami i wariantami
-dietetycznymi.
+z publicznej strony szkoły i z platformy **e-Stołówka** ([loca.pl](https://loca.pl))
+i udostępnia je jako encje: na dziś, na jutro i na cały pobrany tydzień — razem
+z alergenami i wariantami dietetycznymi.
 
 ```
 sensor.e_stolowka_sobolewosp_jadlospis_na_dzis
@@ -21,6 +21,12 @@ sensor.e_stolowka_sobolewosp_jadlospis_na_dzis
 
 ## Jak to działa
 
+Głównym źródłem jest **publiczna strona szkoły** z jadłospisem, jeśli szkoła ją ma —
+dla Sobolewa to [Jadłospis na szkolasobolewo.com](https://szkolasobolewo.com/index.php/jadlospis-poniedzialek/).
+Nie wymaga logowania, ale pokazuje tylko jeden tydzień, więc pozostałe dni uzupełnia
+e-Stołówka. Dzień obecny na stronie szkoły zastępuje ten z e-Stołówki w całości.
+Gdy jedno źródło nie działa, encje pokazują dane z drugiego, a powód trafia do logu.
+
 Platforma loca.pl nie ma publicznego API, a jadłospis nie ma nawet własnego modułu —
 szkoła publikuje go jako **wpisy w aktualnościach**, po jednym na tydzień, pod adresami
 w rodzaju `/sites/jadlospis-280926-021026,1946` (między datami bywa też kilka
@@ -30,7 +36,8 @@ datę (bieżący tydzień i następny, żeby „jutro" działało też w piątek
 
 Wszystko to jest za logowaniem, więc integracja loguje się tym samym formularzem co
 przeglądarka i trzyma sesję w ciasteczkach. Gdy sesja wygaśnie — loguje się ponownie;
-gdy hasło przestanie działać — Home Assistant poprosi o nowe (przepływ *reauth*).
+gdy hasło przestanie działać — Home Assistant poprosi o nowe (przepływ *reauth*),
+a encje do tego czasu korzystają ze strony szkoły, jeśli jest ustawiona.
 
 W treści wpisu dni rozdzielone są akapitami w rodzaju **PONIEDZIAŁEK 28.09.26**,
 a warianty bezglutenowe i bezmleczne oznaczone przedrostkiem `DIETA:` — parser
@@ -62,6 +69,11 @@ w swojej instalacji i zrestartuj Home Assistanta.
 
 Częstotliwość odświeżania zmienisz w **Opcjach** integracji (domyślnie raz na dobę,
 zakres 1–24 godziny — jadłospis zmienia się rzadko, nie ma po co obciążać serwera szkoły).
+
+Tam też ustawisz **publiczną stronę z jadłospisem**. Dla `sobolewosp.loca.pl` adres
+jest już wpisany; inna szkoła może podać swój, o ile strona używa nagłówków dni
+w rodzaju **PONIEDZIAŁEK 28.09.26** albo tabeli. Puste pole oznacza czytanie wyłącznie
+z e-Stołówki.
 
 ## Encje
 
@@ -273,9 +285,10 @@ ruff check . && ruff format --check .
 
 ## Prywatność
 
-Dane logowania trafiają wyłącznie na serwer Twojej szkoły i są przechowywane
-w konfiguracji Home Assistanta na Twoim urządzeniu. Każdy wpis konfiguracyjny ma
-własną sesję i własne ciasteczka. Integracja nie wysyła niczego nigdzie indziej
+Dane logowania trafiają wyłącznie na serwer e-Stołówki Twojej szkoły i są
+przechowywane w konfiguracji Home Assistanta na Twoim urządzeniu. Każdy wpis
+konfiguracyjny ma własną sesję i własne ciasteczka. Publiczną stronę szkoły
+integracja tylko pobiera, bez danych logowania. Nie wysyła niczego nigdzie indziej
 i nie zbiera telemetrii — szczegóły w [SECURITY.md](SECURITY.md).
 
 ## Dokumenty

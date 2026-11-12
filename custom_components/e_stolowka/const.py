@@ -8,8 +8,15 @@ DOMAIN = "e_stolowka"
 
 CONF_BASE_URL = "base_url"
 CONF_UPDATE_HOURS = "update_hours"
+CONF_MENU_URL = "menu_url"
 
 DEFAULT_BASE_URL = "https://sobolewosp.loca.pl"
+# Publiczne strony z jadłospisem, kluczowane hostem e-Stołówki danej szkoły.
+# Adres przypisany do hosta, a nie domyślny dla wszystkich: integracja obsługuje
+# dowolną szkołę na loca.pl i żadna nie może dostać cudzego jadłospisu.
+PUBLIC_MENU_URLS = {
+    "sobolewosp.loca.pl": "https://szkolasobolewo.com/index.php/jadlospis-poniedzialek/",
+}
 # Jadłospis publikowany jest raz w tygodniu, a encje „dziś” i „jutro”
 # przeliczają się o północy niezależnie od odpytywania, więc częstsze
 # pytanie obciąża serwer szkoły, nic nie wnosząc.

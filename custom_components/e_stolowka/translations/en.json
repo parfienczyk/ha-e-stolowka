@@ -30,8 +30,17 @@
     "step": {
       "init": {
         "title": "Options",
-        "data": { "update_hours": "Refresh the menu every (hours)" }
+        "data": {
+          "menu_url": "Public menu page",
+          "update_hours": "Refresh the menu every (hours)"
+        },
+        "data_description": {
+          "menu_url": "Main source of the menu. Days missing here are filled in from e-Stołówka. Leave empty to read from e-Stołówka only."
+        }
       }
+    },
+    "error": {
+      "invalid_url": "Enter a full address starting with http:// or https://."
     }
   },
   "entity": {

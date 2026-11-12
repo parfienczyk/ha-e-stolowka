@@ -2,16 +2,19 @@
 
 ## Co integracja robi z Twoimi danymi
 
-Integracja loguje się na konto rodzica w e-Stołówce Twojej szkoły i czyta
-jadłospis. To wszystko.
+Integracja czyta jadłospis z publicznej strony szkoły oraz, po zalogowaniu na
+konto rodzica, z e-Stołówki. To wszystko.
 
-- E-mail i hasło trafiają **wyłącznie** na serwer Twojej szkoły, tym samym
-  formularzem, którego używa przeglądarka.
+- E-mail i hasło trafiają **wyłącznie** na serwer e-Stołówki Twojej szkoły, tym
+  samym formularzem, którego używa przeglądarka. Publiczna strona szkoły ich
+  nie dostaje.
 - Dane logowania przechowuje Home Assistant w swojej konfiguracji, na Twoim
   urządzeniu (`.storage/core.config_entries`).
 - Każdy wpis konfiguracyjny ma **własną sesję HTTP i własne ciasteczka**, żeby
   nie mieszać się z sesjami innych integracji ani innych kont.
-- Integracja pobiera wyłącznie strony z hosta, który podałeś w konfiguracji.
+- Integracja pobiera wyłącznie strony z hosta e-Stołówki, który podałeś
+  w konfiguracji, oraz publiczną stronę z jadłospisem: dla `sobolewosp.loca.pl`
+  to adres wpisany w kodzie, a dla innych szkół tylko ten podany w opcjach.
   Odnośniki znalezione w treści serwisu są sprawdzane pod tym kątem, więc
   spreparowany wpis nie skłoni Home Assistanta do odpytania obcego serwera.
 - Nie ma telemetrii, zbierania statystyk ani wysyłania czegokolwiek na serwery

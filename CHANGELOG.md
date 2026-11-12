@@ -5,6 +5,24 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Dodane
+
+- Publiczna strona szkoły jako główne źródło jadłospisu. Dni, których na niej
+  nie ma, uzupełnia e-Stołówka, a awaria jednego źródła nie gasi drugiego.
+  Dla `sobolewosp.loca.pl` adres ustawia się sam; inne szkoły mogą podać swój
+  w opcjach integracji, a puste pole wyłącza to źródło.
+
+### Zmienione
+
+- Gdy hasło do e-Stołówki przestanie działać, a strona szkoły działa, encje
+  zostają dostępne i Home Assistant tylko prosi o nowe hasło. Do tego czasu
+  integracja nie próbuje logować się ponownie odrzuconym hasłem.
+
+### Naprawione
+
+- Parser pomija boczne menu strony (`<aside>`), które inaczej doklejałoby się
+  do potraw z ostatniego dnia.
+
 ## [0.4.1] — 2026-10-21
 
 ### Naprawione

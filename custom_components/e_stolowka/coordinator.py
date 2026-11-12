@@ -13,9 +13,10 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import LocaAuthError, LocaClient, LocaError, MenuDay
+from .api import LocaAuthError, LocaClient, LocaError, MenuDay, public_menu_url
 from .const import (
     CONF_BASE_URL,
+    CONF_MENU_URL,
     CONF_UPDATE_HOURS,
     DEFAULT_UPDATE_HOURS,
     DOMAIN,
@@ -57,21 +58,31 @@ class LocaCoordinator(DataUpdateCoordinator[dict[date, MenuDay]]):
             entry.data[CONF_BASE_URL],
             entry.data[CONF_EMAIL],
             entry.data[CONF_PASSWORD],
+            public_menu_url(
+                entry.data[CONF_BASE_URL], entry.options.get(CONF_MENU_URL)
+            ),
         )
-        self._logged_in = False
 
     async def _async_update_data(self) -> dict[date, MenuDay]:
-        """Pobierz jadłospis, logując się przy pierwszym przebiegu."""
+        """Pobierz jadłospis; klient sam loguje się do e-Stołówki, gdy trzeba."""
         try:
-            if not self._logged_in:
-                await self.client.async_login()
-                self._logged_in = True
-            return await self.client.async_get_menu(dt_util.now().date())
+            days, loca_error = await self.client.async_get_combined_menu(
+                dt_util.now().date()
+            )
         except LocaAuthError as err:
-            self._logged_in = False
             raise ConfigEntryAuthFailed(str(err)) from err
         except LocaError as err:
             raise UpdateFailed(str(err)) from err
+
+        if loca_error is not None:
+            _LOGGER.warning(
+                "Jadłospis tylko ze strony szkoły, e-Stołówka zawiodła: %s", loca_error
+            )
+            # Prośba o nowe hasło bez wyjątku: ConfigEntryAuthFailed wyłączyłby
+            # encje mimo działającego głównego źródła.
+            if isinstance(loca_error, LocaAuthError):
+                self.config_entry.async_start_reauth(self.hass)
+        return days
 
     def day(self, offset: int = 0) -> MenuDay | None:
         """Zwróć jadłospis na dziś (offset 0), jutro (1) itd."""

@@ -30,8 +30,17 @@
     "step": {
       "init": {
         "title": "Opcje",
-        "data": { "update_hours": "Co ile godzin odświeżać jadłospis" }
+        "data": {
+          "menu_url": "Publiczna strona z jadłospisem",
+          "update_hours": "Co ile godzin odświeżać jadłospis"
+        },
+        "data_description": {
+          "menu_url": "Główne źródło jadłospisu. Dni, których tu nie ma, uzupełnia e-Stołówka. Zostaw puste, aby czytać tylko z e-Stołówki."
+        }
       }
+    },
+    "error": {
+      "invalid_url": "Podaj pełny adres zaczynający się od http:// lub https://."
     }
   },
   "entity": {

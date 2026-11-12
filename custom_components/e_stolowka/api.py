@@ -1,7 +1,10 @@
-"""Klient e-Stołówki na platformie loca.pl.
+"""Klient jadłospisu: publiczna strona szkoły i e-Stołówka na platformie loca.pl.
 
-Platforma nie ma API, a jadłospis nie ma własnego modułu — szkoła publikuje go
-jako wpisy w aktualnościach, po jednym na tydzień, pod adresami w postaci
+Głównym źródłem jest publiczna strona szkoły, jeśli ją ma: nie wymaga logowania,
+ale zwykle pokazuje tylko bieżący tydzień. Resztę uzupełnia e-Stołówka.
+
+Platforma loca.pl nie ma API, a jadłospis nie ma własnego modułu — szkoła publikuje
+go jako wpisy w aktualnościach, po jednym na tydzień, pod adresami w postaci
 `/sites/jadlospis-280926-021026,1946` (zakres dat zapisany w samym adresie).
 Klient loguje się formularzem rodzica, czyta listę aktualności, wybiera wpisy
 obejmujące dzisiejszą datę i wyciąga z nich jadłospis.
@@ -18,7 +21,7 @@ from urllib.parse import urljoin, urlparse
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from bs4 import BeautifulSoup, Tag
 
-from .const import MAX_WEEKS, NEWS_PATHS
+from .const import MAX_WEEKS, NEWS_PATHS, PUBLIC_MENU_URLS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,7 +116,7 @@ class MenuLink:
 
 
 class LocaClient:
-    """Sesja rodzica w e-Stołówce."""
+    """Sesja rodzica w e-Stołówce wraz z publiczną stroną szkoły."""
 
     def __init__(
         self,
@@ -121,13 +124,16 @@ class LocaClient:
         base_url: str,
         email: str,
         password: str,
+        menu_url: str | None = None,
     ) -> None:
         """Przygotuj klienta. Nie wykonuje żadnych żądań."""
         self._session = session
         self._base = base_url.rstrip("/")
         self._email = email
         self._password = password
+        self._menu_url = menu_url
         self._news_path: str | None = None
+        self._auth_error: LocaAuthError | None = None
 
     def _url(self, path: str) -> str:
         """Zbuduj pełny URL ze ścieżki względnej."""
@@ -172,8 +178,54 @@ class LocaClient:
         # Bez adresu e-mail: logi debug trafiają do publicznych zgłoszeń.
         _LOGGER.debug("Zalogowano w e-Stołówce (%s)", self._base)
 
+    async def async_get_public_menu(
+        self, today: date | None = None
+    ) -> dict[date, MenuDay]:
+        """Zwróć jadłospis z publicznej strony szkoły; pusty, gdy jej nie ustawiono."""
+        if self._menu_url is None:
+            return {}
+        days = parse_menu(await self._fetch(self._menu_url), today or date.today())
+        if not days:
+            raise LocaParseError(
+                f"Strona {self._menu_url} nie zawiera rozpoznawalnych dni"
+            )
+        return days
+
+    async def async_get_combined_menu(
+        self, today: date | None = None
+    ) -> tuple[dict[date, MenuDay], LocaError | None]:
+        """Zwróć jadłospis ze strony szkoły uzupełniony z e-Stołówki.
+
+        Awaria jednego źródła nie gasi drugiego. Drugi element wyniku to błąd
+        e-Stołówki, gdy jadłospis pochodzi wyłącznie ze strony szkoły — wywołujący
+        może wtedy poprosić o nowe hasło, nie tracąc danych. Wyjątek oznacza, że
+        nie ma czego pokazać, bo zawiodły oba źródła.
+        """
+        today = today or date.today()
+        public: dict[date, MenuDay] = {}
+        try:
+            public = await self.async_get_public_menu(today)
+        except LocaError as err:
+            _LOGGER.warning("Nie udało się odczytać strony szkoły: %s", err)
+
+        # Odrzuconego hasła nie ponawiamy: każda próba to nieudane logowanie na
+        # serwerze szkoły. Nowe hasło z reauth przeładowuje wpis razem z klientem.
+        if public and self._auth_error is not None:
+            return public, self._auth_error
+
+        try:
+            loca = await self.async_get_menu(today)
+        except LocaError as err:
+            if isinstance(err, LocaAuthError):
+                self._auth_error = err
+            if not public:
+                raise
+            return public, err
+        self._auth_error = None
+        return merge_menus(public, loca), None
+
     async def async_get_menu(self, today: date | None = None) -> dict[date, MenuDay]:
-        """Zwróć jadłospis na bieżący i najbliższy tydzień, kluczowany datą.
+        """Zwróć jadłospis z e-Stołówki na bieżący i najbliższy tydzień, wg daty.
 
         Loguje się ponownie, gdy sesja wygasła.
         """
@@ -261,6 +313,34 @@ class LocaClient:
         )
 
 
+def public_menu_url(base_url: str, configured: str | None) -> str | None:
+    """Ustal adres publicznej strony z jadłospisem.
+
+    `None` znaczy, że użytkownik nic nie ustawiał — bierzemy adres znany dla tej
+    szkoły. Pusty napis to świadome wyłączenie strony w opcjach.
+    """
+    if configured is None:
+        return PUBLIC_MENU_URLS.get(urlparse(base_url).hostname or "")
+    return configured.strip() or None
+
+
+def is_valid_menu_url(url: str) -> bool:
+    """Czy adres strony z jadłospisem to pełny adres http(s)."""
+    parts = urlparse(url)
+    return parts.scheme in ("http", "https") and bool(parts.hostname)
+
+
+def merge_menus(
+    primary: dict[date, MenuDay], secondary: dict[date, MenuDay]
+) -> dict[date, MenuDay]:
+    """Scal jadłospisy; dzień obecny w głównym źródle zastępuje drugie w całości.
+
+    Scalanie po dniach, a nie po potrawach: te same dania są w obu źródłach
+    zapisane nieco inaczej, więc suma pokazałaby je podwójnie.
+    """
+    return dict(sorted({**secondary, **primary}.items()))
+
+
 def _is_logged_out(html: str) -> bool:
     """Czy serwer zwrócił stronę dla niezalogowanego użytkownika."""
     soup = BeautifulSoup(html, "html.parser")
@@ -322,7 +402,9 @@ def parse_menu(
     w nagłówku jest sama nazwa dnia, bez daty.
     """
     soup = BeautifulSoup(html, "html.parser")
-    for tag in soup.select("script, style, nav, footer, header"):
+    # `aside`: boczne menu strony szkoły stoi w <main> tuż za jadłospisem i bez
+    # tego jego pozycje doklejałyby się do potraw z ostatniego dnia.
+    for tag in soup.select("script, style, nav, footer, header, aside"):
         tag.decompose()
     for line_break in soup.find_all("br"):
         line_break.replace_with("\n")
