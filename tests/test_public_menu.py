@@ -76,6 +76,24 @@ class BrokenLocaSession(SchoolSession):
         return super().get(url, **kwargs)
 
 
+class PdfResponse(FakeResponse):
+    """Plik binarny: aiohttp nie potrafi odczytać go jako tekstu."""
+
+    async def text(self) -> str:
+        """Zachowaj się jak aiohttp dla PDF-a bez kodowania znaków."""
+        raise UnicodeDecodeError("utf-8", b"\xe2\xe3", 0, 1, "invalid continuation")
+
+
+class PdfSchoolSession(SchoolSession):
+    """Adres strony szkoły wskazuje PDF zamiast strony HTML."""
+
+    def get(self, url: str, **kwargs: Any) -> FakeResponse:
+        """Zwróć PDF dla strony szkoły."""
+        if url == MENU_URL:
+            return PdfResponse("")
+        return super().get(url, **kwargs)
+
+
 def _client(session: FakeSession, menu_url: str | None = MENU_URL) -> LocaClient:
     """Klient z ustawioną stroną szkoły."""
     return LocaClient(session, BASE, "rodzic@example.com", "tajne", menu_url)
@@ -168,6 +186,22 @@ def test_loca_used_when_school_page_has_no_menu() -> None:
 
     assert loca_error is None
     assert days[THURSDAY].dishes == ["zupa z e-Stołówki"]
+
+
+def test_loca_used_when_school_page_is_a_pdf() -> None:
+    """PDF pod adresem strony szkoły nie wyłącza integracji."""
+    days, loca_error = _combined(_client(PdfSchoolSession(SCHOOL_PAGE)))
+
+    assert loca_error is None
+    assert days[THURSDAY].dishes == ["zupa z e-Stołówki"]
+
+
+def test_pdf_page_is_a_parse_error() -> None:
+    """Komunikat mówi wprost, że pod adresem nie ma strony HTML."""
+    client = _client(PdfSchoolSession(SCHOOL_PAGE))
+
+    with pytest.raises(LocaParseError, match="nie jest stroną HTML"):
+        asyncio.run(client.async_get_public_menu(TODAY))
 
 
 def test_school_page_survives_loca_outage() -> None:

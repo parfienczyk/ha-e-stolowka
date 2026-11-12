@@ -151,6 +151,9 @@ class LocaClient:
             raise LocaConnectionError(f"Błąd połączenia z {url}: {err}") from err
         except TimeoutError as err:
             raise LocaConnectionError(f"Przekroczono czas odpowiedzi {url}") from err
+        except UnicodeDecodeError as err:
+            # Np. link do PDF-a w opcjach — bez tego wyjątek omija zapasowe źródło.
+            raise LocaParseError(f"{url} nie jest stroną HTML (np. PDF)") from err
 
     async def _async_csrf_token(self) -> str:
         """Pobierz token CSRF z formularza logowania."""

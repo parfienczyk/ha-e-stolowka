@@ -22,6 +22,8 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 - Parser pomija boczne menu strony (`<aside>`), które inaczej doklejałoby się
   do potraw z ostatniego dnia.
+- Adres wskazujący PDF zamiast strony HTML daje czytelny błąd w logu, zamiast
+  wyłączać encje.
 
 ## [0.4.1] — 2026-10-21
 
