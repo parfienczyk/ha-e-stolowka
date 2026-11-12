@@ -329,7 +329,12 @@ def public_menu_url(base_url: str, configured: str | None) -> str | None:
 
 def is_valid_menu_url(url: str) -> bool:
     """Czy adres strony z jadłospisem to pełny adres http(s)."""
-    parts = urlparse(url)
+    try:
+        parts = urlparse(url)
+        # Sam urlparse puszcza zły port. Dopiero odczyt .port rzuca ValueError.
+        _ = parts.port
+    except ValueError:
+        return False
     return parts.scheme in ("http", "https") and bool(parts.hostname)
 
 

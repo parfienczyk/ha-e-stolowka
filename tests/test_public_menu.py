@@ -308,6 +308,9 @@ def test_empty_option_disables_school_page() -> None:
         ("ftp://szkola.example/", False),
         ("file:///etc/passwd", False),
         ("https://", False),
+        ("https://szkola.example:99999/jadlospis", False),
+        ("https://szkola.example:abc/", False),
+        ("http://[::1", False),
     ],
 )
 def test_menu_url_validation(url: str, valid: bool) -> None:
