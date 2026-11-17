@@ -25,17 +25,9 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import (
-    LocaAuthError,
-    LocaClient,
-    LocaConnectionError,
-    LocaError,
-    is_valid_menu_url,
-    public_menu_url,
-)
+from .api import LocaAuthError, LocaClient, LocaConnectionError, LocaError
 from .const import (
     CONF_BASE_URL,
-    CONF_MENU_URL,
     CONF_UPDATE_HOURS,
     DEFAULT_BASE_URL,
     DEFAULT_UPDATE_HOURS,
@@ -155,45 +147,25 @@ class LocaConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class LocaOptionsFlow(OptionsFlow):
-    """Pozwala zmienić częstotliwość odpytywania i stronę z jadłospisem."""
+    """Pozwala zmienić częstotliwość odpytywania."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Zapisz nowy interwał aktualizacji i adres strony z jadłospisem."""
-        options = self.config_entry.options
-        hours = options.get(CONF_UPDATE_HOURS, DEFAULT_UPDATE_HOURS)
-        menu_url = (
-            public_menu_url(
-                self.config_entry.data[CONF_BASE_URL], options.get(CONF_MENU_URL)
-            )
-            or ""
-        )
-
-        errors: dict[str, str] = {}
+        """Zapisz nowy interwał aktualizacji."""
         if user_input is not None:
-            hours = user_input[CONF_UPDATE_HOURS]
-            menu_url = (user_input.get(CONF_MENU_URL) or "").strip()
-            if not menu_url or is_valid_menu_url(menu_url):
-                # Pusty adres zapisujemy jawnie — brak klucza przywróciłby domyślny.
-                return self.async_create_entry(
-                    data={CONF_UPDATE_HOURS: hours, CONF_MENU_URL: menu_url}
-                )
-            errors[CONF_MENU_URL] = "invalid_url"
+            return self.async_create_entry(data=user_input)
 
+        current = self.config_entry.options.get(CONF_UPDATE_HOURS, DEFAULT_UPDATE_HOURS)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
-                        CONF_MENU_URL, description={"suggested_value": menu_url}
-                    ): TextSelector(TextSelectorConfig(type=TextSelectorType.URL)),
-                    vol.Required(CONF_UPDATE_HOURS, default=hours): NumberSelector(
+                    vol.Required(CONF_UPDATE_HOURS, default=current): NumberSelector(
                         NumberSelectorConfig(
                             min=1, max=24, step=1, mode=NumberSelectorMode.BOX
                         )
-                    ),
+                    )
                 }
             ),
-            errors=errors,
         )

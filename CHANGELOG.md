@@ -5,6 +5,13 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Usunięte
+
+- Publiczna strona szkoły jako źródło jadłospisu (dodana w 0.5.0). Jadłospis
+  znów pochodzi wyłącznie z e-Stołówki, tak jak w 0.4.1. Adres strony zapisany
+  w opcjach jest pomijany i znika przy następnym zapisie opcji. Złe hasło do
+  e-Stołówki znów wyłącza encje do czasu podania nowego.
+
 ## [0.5.1] — 2026-11-12
 
 ### Naprawione
