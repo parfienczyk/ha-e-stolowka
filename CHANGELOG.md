@@ -5,6 +5,12 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.6.3] — 2026-11-17
+
+### Zmienione
+
+- README jest krótsze i pokazuje zrzut karty Lovelace.
+
 ## [0.6.2] — 2026-11-17
 
 ### Naprawione
@@ -164,7 +170,8 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.2...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.5.1...v0.6.0
