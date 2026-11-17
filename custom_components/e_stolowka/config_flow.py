@@ -25,7 +25,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import LocaAuthError, LocaClient, LocaConnectionError, LocaError
+from .api import LocaAuthError, LocaClient, LocaConnectionError, LocaError, LocaUrlError
 from .const import (
     CONF_BASE_URL,
     CONF_UPDATE_HOURS,
@@ -131,6 +131,8 @@ class LocaConfigFlow(ConfigFlow, domain=DOMAIN):
         """Zwróć słownik błędów formularza; pusty, gdy logowanie się udało."""
         try:
             await _async_validate(self.hass, data)
+        except LocaUrlError:
+            return {"base": "invalid_url"}
         except LocaAuthError:
             return {"base": "invalid_auth"}
         except LocaConnectionError:

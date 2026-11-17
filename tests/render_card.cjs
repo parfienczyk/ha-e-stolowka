@@ -10,8 +10,21 @@ const path = require("path");
 const vm = require("vm");
 
 const defined = {};
+const RealDate = Date;
+const FIXED_MS = RealDate.parse("2026-11-16T23:30:00Z");
+
+function FakeDate(...args) {
+  if (args.length === 0) return new RealDate(FIXED_MS);
+  return new RealDate(...args);
+}
+FakeDate.now = () => FIXED_MS;
+FakeDate.parse = RealDate.parse;
+FakeDate.UTC = RealDate.UTC;
+
 const context = {
   console,
+  Intl,
+  Date: FakeDate,
   HTMLElement: class {
     constructor() {
       this.shadowRoot = null;
@@ -86,4 +99,43 @@ for (const needle of escaped) {
     console.error(`Brak escapowania (${needle}):\n${html}`);
     process.exit(1);
   }
+}
+
+const zoneCard = new defined["e-stolowka-card"]();
+zoneCard.setConfig({ entity, range: "today" });
+zoneCard.hass = {
+  themes: {},
+  config: { time_zone: "Europe/Warsaw" },
+  states: {
+    [entity]: {
+      attributes: {
+        dni: {
+          "2026-11-16": { potrawy: ["OBIAD-16"], dieta: [] },
+          "2026-11-17": { potrawy: ["OBIAD-17"], dieta: [] },
+        },
+      },
+    },
+  },
+};
+const zoneHtml = zoneCard.shadowRoot.innerHTML;
+if (!zoneHtml.includes("OBIAD-17") || zoneHtml.includes("OBIAD-16")) {
+  console.error(`Zła data „dziś" dla Europy/Warszawy:\n${zoneHtml}`);
+  process.exit(1);
+}
+
+let renders = 0;
+const proto = defined["e-stolowka-card"].prototype;
+const originalRender = proto._render;
+proto._render = function renderCounted() {
+  renders += 1;
+  return originalRender.call(this);
+};
+const skipCard = new defined["e-stolowka-card"]();
+skipCard.setConfig({ entity, range: "all" });
+skipCard.hass = zoneCard.hass;
+const afterFirst = renders;
+skipCard.hass = zoneCard.hass;
+if (renders !== afterFirst) {
+  console.error(`Karta rysowała się ponownie: ${renders} zamiast ${afterFirst}`);
+  process.exit(1);
 }

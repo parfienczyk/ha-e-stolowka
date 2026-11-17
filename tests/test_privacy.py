@@ -63,14 +63,21 @@ def test_credentials_are_not_logged() -> None:
 
 
 def test_env_and_dumps_stay_untracked() -> None:
-    """`.env` i katalog `dump/` nie mogą trafić do repozytorium."""
-    for path in (".env", "dump/strona.html"):
+    """`.env`, jego kopie i katalog `dump/` nie mogą trafić do repozytorium."""
+    for path in (".env", ".env.bak", "dump/strona.html"):
         ignored = subprocess.run(
             ["git", "check-ignore", "-q", "--", path],
             cwd=ROOT,
             check=False,
         )
         assert ignored.returncode == 0, path
+
+    example = subprocess.run(
+        ["git", "check-ignore", "-q", "--", ".env.example"],
+        cwd=ROOT,
+        check=False,
+    )
+    assert example.returncode != 0
 
     tracked = subprocess.run(
         ["git", "ls-files", "--", "dump", ".env"],

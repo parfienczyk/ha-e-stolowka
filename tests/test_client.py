@@ -9,10 +9,12 @@ from typing import Any, Self
 
 import pytest
 from e_stolowka_standalone.api import (
+    MAX_PAGE_BYTES,
     LocaAuthError,
     LocaClient,
     LocaConnectionError,
     LocaParseError,
+    LocaUrlError,
 )
 
 BASE = "https://szkola.loca.pl"
@@ -50,12 +52,37 @@ PAGES = {
 }
 
 
+class _FakeContent:
+    """Treść odpowiedzi z limitem odczytu, jak strumień aiohttp."""
+
+    def __init__(self, body: bytes) -> None:
+        """Zapamiętaj bajty."""
+        self._body = body
+
+    async def read(self, n: int = -1) -> bytes:
+        """Zwróć co najwyżej n bajtów."""
+        if n < 0:
+            return self._body
+        return self._body[:n]
+
+
 class FakeResponse:
     """Odpowiedź HTTP udająca aiohttp."""
 
-    def __init__(self, body: str) -> None:
+    def __init__(
+        self,
+        body: str,
+        *,
+        url: str = f"{BASE}/",
+        status: int = 200,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         """Zapamiętaj treść odpowiedzi."""
-        self._body = body
+        self.status = status
+        self.headers = headers or {}
+        self.url = url
+        self.charset = "utf-8"
+        self.content = _FakeContent(body.encode())
 
     async def __aenter__(self) -> Self:
         """Wejdź w kontekst."""
@@ -67,10 +94,6 @@ class FakeResponse:
 
     def raise_for_status(self) -> None:
         """Nic nie zgłasza — testujemy tylko odpowiedzi 200."""
-
-    async def text(self) -> str:
-        """Zwróć treść."""
-        return self._body
 
 
 class FakeSession:
@@ -84,14 +107,20 @@ class FakeSession:
         self.requested: list[str] = []
         self.calls: list[dict[str, Any]] = []
         self.login_succeeds = True
+        self.redirects: dict[str, str] = {}
 
     def get(self, url: str, **kwargs: Any) -> FakeResponse:
         """Zwróć stronę albo ekran logowania, gdy sesja wygasła."""
         self.calls.append(kwargs)
         self.requested.append(url)
+        if url in self.redirects:
+            return FakeResponse(
+                "", url=url, status=302, headers={"Location": self.redirects[url]}
+            )
         if not self.logged_in:
-            return FakeResponse(LOGIN_PAGE)
-        return FakeResponse(self.pages.get(url, '<body class="logged"></body>'))
+            return FakeResponse(LOGIN_PAGE, url=url)
+        body = self.pages.get(url, '<body class="logged"></body>')
+        return FakeResponse(body, url=url)
 
     def post(self, url: str, **kwargs: Any) -> FakeResponse:
         """Obsłuż logowanie."""
@@ -100,8 +129,8 @@ class FakeSession:
         self.login_attempts += 1
         if self.login_succeeds:
             self.logged_in = True
-            return FakeResponse('<body class="logged"></body>')
-        return FakeResponse(LOGIN_PAGE)
+            return FakeResponse('<body class="logged"></body>', url=url)
+        return FakeResponse(LOGIN_PAGE, url=url)
 
 
 def _client(session: FakeSession) -> LocaClient:
@@ -221,4 +250,45 @@ def test_parse_error_wins_over_connection_error() -> None:
     session = PartlyBrokenSession({f"{BASE}/": '<body class="logged"></body>'})
 
     with pytest.raises(LocaParseError, match="nie zawiera wpisów z jadłospisem"):
+        asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))
+
+
+def test_http_base_url_is_rejected_before_any_request() -> None:
+    """Hasło nie wychodzi, gdy adres szkoły nie jest https."""
+    session = FakeSession(PAGES)
+
+    with pytest.raises(LocaUrlError):
+        LocaClient(session, "http://szkola.loca.pl", "rodzic@example.com", "tajne")
+    assert session.requested == []
+
+
+def test_off_host_redirect_is_not_followed() -> None:
+    """Przekierowanie na inny host nie jest pobierane."""
+    session = FakeSession(PAGES)
+    session.redirects[MENU_28] = "http://192.168.1.1/secret"
+
+    with pytest.raises(LocaConnectionError, match="spoza szkoły"):
+        asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))
+    assert all("192.168.1.1" not in url for url in session.requested)
+
+
+def test_same_host_https_redirect_is_followed() -> None:
+    """Przekierowanie na https tej samej szkoły jest odczytywane."""
+    session = FakeSession(PAGES)
+    target = f"{MENU_28}?ok=1"
+    session.redirects[MENU_28] = target
+    session.pages[target] = PAGES[MENU_28]
+
+    days = asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))
+
+    assert list(days) == [date(2026, 9, 28)]
+    assert target in session.requested
+
+
+def test_oversized_page_is_rejected() -> None:
+    """Strona większa niż limit nie jest parsowana."""
+    session = FakeSession(PAGES)
+    session.pages[MENU_28] = "x" * (MAX_PAGE_BYTES + 1)
+
+    with pytest.raises(LocaConnectionError, match="za duża"):
         asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))

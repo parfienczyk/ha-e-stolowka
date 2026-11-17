@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from urllib.parse import urljoin, urlparse
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import ClientError, ClientResponse, ClientSession, ClientTimeout
 from bs4 import BeautifulSoup, Tag
 
 from .const import MAX_WEEKS, NEWS_PATHS
@@ -23,6 +23,10 @@ from .const import MAX_WEEKS, NEWS_PATHS
 _LOGGER = logging.getLogger(__name__)
 
 TIMEOUT = ClientTimeout(total=30)
+# Większa strona jest parsowana na pętli Home Assistanta i zatrzymuje całą instalację.
+MAX_PAGE_BYTES = 1_000_000
+_MAX_REDIRECTS = 5
+_REDIRECTS = frozenset({301, 302, 303, 307, 308})
 
 # Formularz logowania: POST na / z tokenem CSRF ukrytym w <input name="token">.
 LOGIN_MODULE = "users"
@@ -75,6 +79,10 @@ class LocaConnectionError(LocaError):
     """Nie udało się połączyć z serwerem."""
 
 
+class LocaUrlError(LocaError):
+    """Adres szkoły nie zaczyna się od https://."""
+
+
 class LocaParseError(LocaError):
     """Zalogowano, ale nie znaleziono jadłospisu."""
 
@@ -125,6 +133,10 @@ class LocaClient:
         """Przygotuj klienta. Nie wykonuje żadnych żądań."""
         self._session = session
         self._base = base_url.rstrip("/")
+        parts = urlparse(self._base)
+        if parts.scheme != "https" or not parts.hostname:
+            raise LocaUrlError("Adres szkoły musi zaczynać się od https://")
+        self._host = parts.hostname
         self._email = email
         self._password = password
         self._news_path: str | None = None
@@ -133,18 +145,47 @@ class LocaClient:
         """Zbuduj pełny URL ze ścieżki względnej."""
         return urljoin(self._base + "/", path.lstrip("/"))
 
+    def _require_school(self, url: str) -> None:
+        """Odrzuć adres, który nie jest https na hoście szkoły."""
+        parts = urlparse(url)
+        if parts.scheme != "https" or parts.hostname != self._host:
+            raise LocaConnectionError(f"Odmawiam adresu spoza szkoły: {url}")
+
     async def _fetch(self, path: str, data: dict[str, str] | None = None) -> str:
-        """Pobierz stronę; POST, gdy podano dane formularza."""
+        """Pobierz stronę; POST, gdy podano dane formularza.
+
+        Przekierowanie idzie dalej tylko na https tego samego hosta. Inaczej
+        wpis na stronie szkoły wysłałby Home Assistanta na inny komputer w domu.
+        """
         url = self._url(path)
-        method = self._session.post if data else self._session.get
-        try:
-            async with method(url, data=data, timeout=TIMEOUT) as resp:
-                resp.raise_for_status()
-                return await resp.text()
-        except ClientError as err:
-            raise LocaConnectionError(f"Błąd połączenia z {url}: {err}") from err
-        except TimeoutError as err:
-            raise LocaConnectionError(f"Przekroczono czas odpowiedzi {url}") from err
+        payload = data
+        for _hop in range(_MAX_REDIRECTS + 1):
+            self._require_school(url)
+            method = self._session.post if payload is not None else self._session.get
+            try:
+                async with method(
+                    url, data=payload, timeout=TIMEOUT, allow_redirects=False
+                ) as resp:
+                    if resp.status in _REDIRECTS:
+                        location = resp.headers.get("Location")
+                        if not location:
+                            raise LocaConnectionError(
+                                f"Przekierowanie bez adresu: {url}"
+                            )
+                        url = urljoin(str(resp.url), location)
+                        if resp.status in (301, 302, 303):
+                            payload = None
+                        continue
+                    self._require_school(str(resp.url))
+                    resp.raise_for_status()
+                    return await _read_capped(resp)
+            except ClientError as err:
+                raise LocaConnectionError(f"Błąd połączenia z {url}: {err}") from err
+            except TimeoutError as err:
+                raise LocaConnectionError(
+                    f"Przekroczono czas odpowiedzi {url}"
+                ) from err
+        raise LocaConnectionError(f"Za dużo przekierowań: {url}")
 
     async def _async_csrf_token(self) -> str:
         """Pobierz token CSRF z formularza logowania."""
@@ -261,6 +302,18 @@ class LocaClient:
         )
 
 
+async def _read_capped(resp: ClientResponse) -> str:
+    """Odczytaj treść odpowiedzi, najwyżej MAX_PAGE_BYTES bajtów."""
+    raw = await resp.content.read(MAX_PAGE_BYTES + 1)
+    if len(raw) > MAX_PAGE_BYTES:
+        raise LocaConnectionError("Odpowiedź szkoły jest za duża")
+    encoding = resp.charset or "utf-8"
+    try:
+        return raw.decode(encoding)
+    except UnicodeDecodeError as err:
+        raise LocaConnectionError(f"Nieczytelna treść strony {resp.url}") from err
+
+
 def _is_logged_out(html: str) -> bool:
     """Czy serwer zwrócił stronę dla niezalogowanego użytkownika."""
     soup = BeautifulSoup(html, "html.parser")
@@ -293,7 +346,7 @@ def find_menu_links(html: str, base_url: str) -> list[MenuLink]:
         # Odnośniki pochodzą z treści serwisu, więc traktujemy je jak dane
         # niezaufane: bez tego sprawdzenia spreparowany wpis kazałby Home
         # Assistantowi odpytać dowolny host z sieci domowej użytkownika.
-        if parts.scheme not in ("http", "https") or parts.hostname != host:
+        if parts.scheme != "https" or parts.hostname != host:
             _LOGGER.debug("Pomijam odnośnik spoza %s: %s", host, url)
             continue
 
@@ -378,11 +431,14 @@ def _day_header(
     """
     match = _RE_DAY_HEADER.match(line)
     if match is not None:
-        rest = match.group(2)
-        day = _parse_date(rest or line, today)
-        if day is None and week_start is not None:
-            day = _weekday_in_week(week_start, match.group(1).lower())
-        return day, True
+        rest = match.group(2).strip()
+        # „Piątek z kurczakiem” to danie, nie nagłówek. Sama nazwa dnia — tak.
+        if rest:
+            day = _parse_date(rest, today)
+            return (day, True) if day is not None else (None, False)
+        if week_start is None:
+            return None, True
+        return _weekday_in_week(week_start, match.group(1).lower()), True
 
     # Nagłówek bez nazwy dnia musi mieć pełną datę z rokiem, inaczej pogrubiona
     # linia w rodzaju "Zestaw 1.5 l soku" udawałaby 1 maja.
@@ -419,7 +475,7 @@ def _add_dish(menu: MenuDay, line: str) -> None:
         if (diet := _RE_DIET.sub("", part)) != part:
             if diet and diet not in menu.diet:
                 menu.diet.append(diet)
-        elif part not in menu.dishes:
+        else:
             menu.dishes.append(part)
 
 

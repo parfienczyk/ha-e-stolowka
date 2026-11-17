@@ -196,6 +196,27 @@ def test_quantity_is_not_mistaken_for_a_date() -> None:
     assert parse_menu("<table><tr><td>Mleko 1.5%</td><td>kakao</td></tr></table>") == {}
 
 
+def test_dish_starting_with_weekday_stays_on_the_same_day() -> None:
+    """„Piątek z kurczakiem” to danie, nie przełączenie na piątek."""
+    days = parse_menu(
+        "<p><strong>PONIEDZIAŁEK 28.09.26</strong></p>"
+        "<p>zupa</p><p>Piątek z kurczakiem</p><p>kompot</p>",
+        TODAY,
+        week_start=MONDAY,
+    )
+    assert list(days) == [MONDAY]
+    assert days[MONDAY].dishes == ["zupa", "Piątek z kurczakiem", "kompot"]
+
+
+def test_repeated_dish_is_kept() -> None:
+    """Dwa takie same dania w jednym dniu zostają oba."""
+    days = parse_menu(
+        "<p><strong>PONIEDZIAŁEK 28.09.26</strong></p><p>Chleb</p><p>Chleb</p>",
+        TODAY,
+    )
+    assert days[MONDAY].dishes == ["Chleb", "Chleb"]
+
+
 def test_weekday_without_date_uses_week_from_url() -> None:
     """Nagłówek „WTOREK" bez daty dostaje datę z tygodnia wpisu."""
     days = parse_menu(
@@ -239,6 +260,7 @@ def test_rejects_menu_links_from_other_hosts() -> None:
         '<a href="https://evil.example.com/sites/jadlospis-010126-020126,9">zły</a>'
         '<a href="//evil.example.com/sites/jadlospis-030126-040126,8">zły</a>'
         '<a href="javascript:alert(1)/sites/jadlospis-050126-060126,7">zły</a>'
+        '<a href="http://sobolewosp.loca.pl/sites/jadlospis-070126-080126,6">zły</a>'
     )
     links = find_menu_links(html, BASE)
     assert [link.url for link in links] == [

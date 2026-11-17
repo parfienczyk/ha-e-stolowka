@@ -17,6 +17,7 @@
       }
     },
     "error": {
+      "invalid_url": "Adres musi zaczynać się od https://.",
       "cannot_connect": "Nie udało się połączyć ze stroną szkoły.",
       "invalid_auth": "Nieprawidłowy e-mail lub hasło.",
       "unknown": "Nieoczekiwany błąd — szczegóły w logu Home Assistanta."

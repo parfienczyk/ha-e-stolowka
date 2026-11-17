@@ -5,6 +5,18 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Bezpieczeństwo
+
+- Adres szkoły musi zaczynać się od `https://`. Hasło nie jest wysyłane na
+  `http://`. Przekierowanie na inny host jest odrzucane, a strona większa niż
+  1 MB nie jest czytana.
+
+### Naprawione
+
+- Karta liczy „dziś” w strefie czasowej Home Assistanta.
+- Linia dania zaczynająca się od nazwy dnia tygodnia nie otwiera nowego dnia.
+- Powtórzone to samo danie w jednym dniu zostaje na liście.
+
 ## [0.6.0] — 2026-11-17
 
 ### Usunięte

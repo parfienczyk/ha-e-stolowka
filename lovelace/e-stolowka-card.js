@@ -21,11 +21,21 @@ const MONTH_ABBREVIATIONS = [
   "lip", "sie", "wrz", "paź", "lis", "gru",
 ];
 
-/** Data „dziś" w lokalnej strefie, w formacie klucza atrybutu `dni`. */
-const isoToday = () => {
+/** Data „dziś" w strefie Home Assistanta, w formacie klucza atrybutu `dni`. */
+const isoToday = (timeZone) => {
   const now = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  if (!timeZone) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  }
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const value = (type) => parts.find((part) => part.type === type).value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 };
 
 /** Data z klucza ISO jako obiekt Date w lokalnej strefie (bez przesunięcia UTC). */
@@ -185,6 +195,12 @@ class EStolowkaCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this.classList.toggle("dark", Boolean(hass?.themes?.darkMode));
+    if (!this._config) return;
+    const dni = hass?.states?.[this._config.entity]?.attributes?.dni;
+    // Data jest w kluczu, bo o północy zmienia się „dziś", a atrybut `dni` nie.
+    const menuKey = `${isoToday(hass?.config?.time_zone)}\0${JSON.stringify(dni ?? null)}`;
+    if (menuKey === this._menuKey) return;
+    this._menuKey = menuKey;
     this._render();
   }
 
@@ -199,7 +215,7 @@ class EStolowkaCard extends HTMLElement {
     const menuByDate = state?.attributes?.dni;
     if (!menuByDate) return { days: [], missingEntity: !state };
 
-    const today = isoToday();
+    const today = isoToday(this._hass?.config?.time_zone);
     const [weekStart, weekEnd] = weekBounds(today);
     const days = Object.keys(menuByDate)
       .sort()
@@ -229,7 +245,7 @@ class EStolowkaCard extends HTMLElement {
 
     const { days, missingEntity } = this._visibleDays();
     const missingConfig = !this._config.entity;
-    const today = isoToday();
+    const today = isoToday(this._hass?.config?.time_zone);
 
     const header = `
       <div class="header">

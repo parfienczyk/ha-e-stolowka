@@ -11,9 +11,9 @@ jadłospis. To wszystko.
   urządzeniu (`.storage/core.config_entries`).
 - Każdy wpis konfiguracyjny ma **własną sesję HTTP i własne ciasteczka**, żeby
   nie mieszać się z sesjami innych integracji ani innych kont.
-- Integracja pobiera wyłącznie strony z hosta, który podałeś w konfiguracji.
-  Odnośniki znalezione w treści serwisu są sprawdzane pod tym kątem, więc
-  spreparowany wpis nie skłoni Home Assistanta do odpytania obcego serwera.
+- Integracja rozmawia wyłącznie po https z hostem, który podałeś.
+  Odnośniki i przekierowania na inny host są odrzucane, więc spreparowany
+  wpis nie skłoni Home Assistanta do odpytania obcego serwera.
 - Nie ma telemetrii, zbierania statystyk ani wysyłania czegokolwiek na serwery
   autora. Projekt nie ma własnego backendu.
 
