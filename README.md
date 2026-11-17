@@ -7,35 +7,26 @@
 [![Licencja: MIT](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
 
 **Jadłospis szkolnej stołówki w Home Assistancie.** Integracja czyta menu
-z platformy **e-Stołówka** ([loca.pl](https://loca.pl)) i udostępnia je jako encje:
-na dziś, na jutro i na cały pobrany tydzień — razem z alergenami i wariantami
+z platformy **e-Stołówka** ([loca.pl](https://loca.pl)) i pokazuje je jako encje:
+na dziś, na jutro i na cały pobrany tydzień, razem z alergenami i wariantami
 dietetycznymi.
 
-```
-sensor.e_stolowka_sobolewosp_jadlospis_na_dzis
-  zupa barszcz czerwony (seler, mleko), naleśniki z serem i sosem
-  jogurtowo-jagodowym (mleko, pszenica, jaja), Kompot, Owoc: nektarynka
-```
+![Karta e-Stołówka: jadłospis na bieżący tydzień, dzisiejszy dzień wyróżniony](docs/karta.png)
 
 > Projekt społecznościowy, niepowiązany z loca.pl ani z żadną szkołą.
 
 ## Jak to działa
 
-Platforma loca.pl nie ma publicznego API, a jadłospis nie ma nawet własnego modułu —
-szkoła publikuje go jako **wpisy w aktualnościach**, po jednym na tydzień, pod adresami
-w rodzaju `/sites/jadlospis-280926-021026,1946` (między datami bywa też kilka
-myślników, np. `jadlospis-051026---091026`). Zakres dat zapisany jest w samym
-adresie, więc integracja czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą
-datę (bieżący tydzień i następny, żeby „jutro" działało też w piątek) i tylko je pobiera.
+loca.pl nie ma publicznego API. Szkoła publikuje jadłospis jako wpis
+w aktualnościach, po jednym na tydzień, a zakres dat jest w adresie
+(`/sites/jadlospis-280926-021026,1946`). Integracja loguje się formularzem
+rodzica, bierze bieżący tydzień i następny (żeby „jutro" działało też w piątek)
+i tylko te wpisy pobiera.
 
-Wszystko to jest za logowaniem, więc integracja loguje się tym samym formularzem co
-przeglądarka i trzyma sesję w ciasteczkach. Gdy sesja wygaśnie — loguje się ponownie;
-gdy hasło przestanie działać — Home Assistant poprosi o nowe (przepływ *reauth*).
-
-W treści wpisu dni rozdzielone są akapitami w rodzaju **PONIEDZIAŁEK 28.09.26**,
-a warianty bezglutenowe i bezmleczne oznaczone przedrostkiem `DIETA:` — parser
-rozdziela je na osobną listę. Alergeny zostają w nazwach potraw. Gdyby inna szkoła
-publikowała jadłospis w tabeli, parser poradzi sobie również z takim układem.
+Dni w treści rozdziela nagłówek w rodzaju **PONIEDZIAŁEK 28.09.26**. Wiersze
+`DIETA:` trafiają na osobną listę, alergeny zostają w nazwach potraw. Układ
+tabelaryczny też jest czytany. Wygasła sesja jest odnawiana, a złe hasło
+uruchamia w Home Assistantzie ponowne logowanie.
 
 ## Instalacja
 
@@ -47,8 +38,8 @@ publikowała jadłospis w tabeli, parser poradzi sobie również z takim układe
 
 ### Ręcznie
 
-Skopiuj katalog `custom_components/e_stolowka` do `config/custom_components/`
-w swojej instalacji i zrestartuj Home Assistanta.
+Skopiuj `custom_components/e_stolowka` do `config/custom_components/`
+i zrestartuj Home Assistanta.
 
 ## Konfiguracja
 
@@ -56,239 +47,103 @@ w swojej instalacji i zrestartuj Home Assistanta.
 
 | Pole | Opis |
 | --- | --- |
-| Adres e-Stołówki | np. `https://sobolewosp.loca.pl` |
-| E-mail | ten sam, którym logujesz się jako rodzic |
-| Hasło | hasło do konta rodzica |
+| Adres e-Stołówki | `https://` Twojej szkoły, np. `https://sobolewosp.loca.pl` |
+| E-mail | konto rodzica |
+| Hasło | hasło do tego konta |
 
-Częstotliwość odświeżania zmienisz w **Opcjach** integracji (domyślnie raz na dobę,
-zakres 1–24 godziny — jadłospis zmienia się rzadko, nie ma po co obciążać serwera szkoły).
+Odświeżanie ustawisz w **Opcjach** (domyślnie raz na dobę, zakres 1–24 godziny).
+Adres musi być `https://`.
 
 ## Encje
 
-Encje nazywane są po szkole wziętej z adresu, np. dla `sobolewosp.loca.pl`:
+Nazwa bierze się ze szkoły w adresie. Dla `sobolewosp.loca.pl`:
 
 | Encja | Stan | Atrybuty |
 | --- | --- | --- |
-| `sensor.e_stolowka_sobolewosp_jadlospis_na_dzis` | dania w jednej linii | `data`, `potrawy`, `dieta`, `jadlospis` |
-| `sensor.e_stolowka_sobolewosp_jadlospis_na_jutro` | dania w jednej linii | `data`, `potrawy`, `dieta`, `jadlospis` |
-| `sensor.e_stolowka_sobolewosp_jadlospis_tygodniowy` | liczba dni z menu | `poczatek_tygodnia`, `koniec_tygodnia`, `dni` |
+| `…_jadlospis_na_dzis` | dania w jednej linii | `data`, `potrawy`, `dieta`, `jadlospis` |
+| `…_jadlospis_na_jutro` | dania w jednej linii | `data`, `potrawy`, `dieta`, `jadlospis` |
+| `…_jadlospis_tygodniowy` | liczba dni z menu | `poczatek_tygodnia`, `koniec_tygodnia`, `dni` |
 
-Stan encji w Home Assistancie nie może przekroczyć 255 znaków, więc pełny jadłospis
-zawsze znajdziesz w atrybutach — `potrawy` jako listę, `jadlospis` jako tekst,
-`dieta` jako listę wariantów dietetycznych. Sensor tygodniowy trzyma wszystkie
-pobrane dni w atrybucie `dni`, kluczowane datą.
+Stan encji mieści 255 znaków, więc pełna lista jest w atrybutach. W weekend,
+święto i ferie sensory dzienne mają stan `unknown`.
 
-W weekendy, święta i ferie żaden wpis nie obejmuje dzisiejszej daty — sensory dzienne
-mają wtedy stan `unknown`, a `potrawy` są puste. Automatyzacje warto więc zabezpieczyć
-warunkiem, jak w przykładzie niżej.
+## Karta Lovelace
 
-### Własna karta Lovelace (zalecane)
-
-W katalogu [`lovelace/`](lovelace/) leży gotowa karta — bez kroku budowania,
-bez `card_mod`, bez ograniczeń sanityzatora karty markdown. Wygląda jak karty
-systemowe, sama rozpoznaje tryb ciemny i wyróżnia dzisiejszy dzień.
+Gotowa karta jest w [`lovelace/`](lovelace/). HACS jej nie instaluje razem
+z integracją (repozytorium ma jedną kategorię: Integration).
 
 1. Skopiuj `lovelace/e-stolowka-card.js` do `config/www/`
 2. **Ustawienia → Dashboardy → ⋮ → Zasoby → Dodaj zasób**
    URL `/local/e-stolowka-card.js`, typ **Moduł JavaScript**
 3. Odśwież przeglądarkę twardo (`Ctrl/Cmd + Shift + R`)
-4. Dodaj kartę — znajdziesz ją w wyszukiwarce jako **e-Stołówka**
+4. Dodaj kartę **e-Stołówka**
 
-Karta ma edytor wizualny: sensor wybierzesz z listy, resztę przełącznikami.
-Przy dodawaniu sama podpowiada pierwszy pasujący sensor tygodniowy. YAML
-poniżej jest więc opcjonalny — dla tych, którzy wolą konfigurację tekstową:
+Sensor wybierasz z listy. Karta sama podpowiada pierwszy sensor tygodniowy,
+alergeny z nawiasów pokazuje przygaszone, a dzisiejszy dzień wyróżnia.
+Rozpoznaje też tryb ciemny.
 
 ```yaml
 type: custom:e-stolowka-card
 entity: sensor.e_stolowka_sobolewosp_jadlospis_tygodniowy
 title: Stołówka
-range: week      # week (bieżący tydzień) | all (wszystko) | today
-show_diet: false # pokaż warianty dietetyczne jako plakietki
-compact: false   # ciaśniejsze odstępy, bez podtytułu
+range: week      # week | all | today
+show_diet: false
+compact: false
 ```
 
-Alergeny z nawiasów karta wydziela sama i wyświetla przygaszone obok nazwy
-dania. `entity` to sensor **tygodniowy** — on zawiera wszystkie pobrane dni.
+Te same atrybuty da się wkleić w kartę markdown (`potrawy`, `dieta`, `dni`).
 
-> Karta nie instaluje się przez HACS razem z integracją: repozytorium HACS ma
-> jedną kategorię, a ta jest ustawiona na `integration`.
+## Powiadomienie
 
-### Przykład karty markdown
+Blueprint wysyła jadłospis o **7:30** na wybraną encję `notify`. Tuż przed
+wysłaniem odświeża menu. Gdy na ten dzień nie ma potraw, nic nie wychodzi.
+Domyślnie tylko poniedziałek–piątek. Warianty `DIETA:` włącza się przełącznikiem.
 
-```yaml
-type: markdown
-title: Stołówka
-content: |
-  {% set dzis = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') %}
-  {% set jutro = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'potrawy') %}
-  **Dziś:**
-
-  {% if dzis %}- {{ dzis | join('\n- ') }}{% else %}_brak jadłospisu_{% endif %}
-
-  **Jutro:**
-
-  {% if jutro %}- {{ jutro | join('\n- ') }}{% else %}_brak jadłospisu_{% endif %}
-```
-
-Wariant dietetyczny pokażesz, czytając atrybut `dieta` zamiast `potrawy`.
-
-> Użyj `content: |`, nie `content: >`. Składany blok YAML (`>`) skleja kolejne
-> linie spacjami, przez co punkty listy zlewają się w jeden akapit z myślnikami
-> w środku zdania.
-
-Powyższy YAML wklej przez **Show code editor** w konfiguracji karty. Jeśli
-wolisz wizualny edytor, w pole **Content** wklej samą treść — bez linii
-`type:`, `title:` i `content: |` — i **dosuń ją do lewej krawędzi**. Listy
-markdown muszą zaczynać się w pierwszej kolumnie: wcięcie zamienia punkt
-w zagnieżdżony podpunkt, a nagłówek wciąga do poprzedniego punktu.
-
-**Mniejszy tekst i kolory.** Karta markdown nie ma opcji rozmiaru czcionki,
-a `style="..."` nic nie da: Home Assistant przepuszcza treść przez bibliotekę
-[`xss`](https://github.com/leizongmin/js-xss) z domyślną białą listą, w której
-`div`, `span` i `ul` mają **pustą listę dozwolonych atrybutów**. Przechodzą za to
-`<small>` oraz `<font>` z atrybutami `color`, `size` i `face`:
-
-```yaml
-type: markdown
-title: Stołówka
-content: |
-  {% set dzis = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_dzis', 'potrawy') or [] %}
-  {% set jutro = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_na_jutro', 'potrawy') or [] %}
-  <font size="2"><b><font color="tomato">Dziś:</font></b></font>
-  <ul>
-  {% for p in dzis %}<li><font size="2">{{ p }}</font></li>{% else %}<li><font size="2"><i>brak jadłospisu</i></font></li>{% endfor %}
-  </ul>
-  <font size="2"><b><font color="tomato">Jutro:</font></b></font>
-  <ul>
-  {% for p in jutro %}<li><font size="2">{{ p }}</font></li>{% else %}<li><font size="2"><i>brak jadłospisu</i></font></li>{% endfor %}
-  </ul>
-```
-
-`size` przyjmuje wartości 1–7, gdzie 3 jest domyślna — `2` daje mniejszy tekst,
-`1` najmniejszy. Zamiast tego można użyć `<small>`, a `<small><small>` zmniejsza
-dwustopniowo. Ta wersja jest też odporna na wcięcia, bo nie korzysta z list
-markdown.
-
-Tytuł karty pozostaje duży — to nagłówek, nie treść. Zmniejszysz go tylko przez
-[card_mod](https://github.com/thomasloven/lovelace-card-mod) (HACS → Frontend):
-
-```yaml
-card_mod:
-  style: |
-    ha-card { font-size: 13px; }
-    ha-card .card-header { font-size: 20px; padding-bottom: 4px; }
-```
-
-### Przykład karty tygodniowej
-
-Sensor tygodniowy trzyma w atrybucie `dni` słownik `data → {potrawy, dieta,
-jadlospis}`, kluczowany datą ISO. Integracja pobiera bieżący tydzień i następny,
-żeby „jutro" działało także w piątek, więc karta filtruje dni do bieżącego
-tygodnia. Dzisiejszy dzień jest wyróżniony kolorem:
-
-```yaml
-type: markdown
-title: Jadłospis tygodniowy
-content: |
-  {% set dni = state_attr('sensor.e_stolowka_sobolewosp_jadlospis_tygodniowy', 'dni') or {} %}
-  {% set nazwy = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'] %}
-  {% set dzis = now().date() %}
-  {% set od = (dzis - timedelta(days=dzis.weekday())).isoformat() %}
-  {% set do = (dzis + timedelta(days=6 - dzis.weekday())).isoformat() %}
-  {% for data, menu in dni.items() if od <= data <= do %}
-  {% set d = data | as_datetime %}
-  <font size="2"><b><font color="{{ 'tomato' if data == dzis.isoformat() else 'cornflowerblue' }}">{{ nazwy[d.weekday()] }} {{ d.strftime('%d.%m') }}</font></b><br>
-  {% for p in menu.potrawy %}• {{ p }}<br>{% endfor %}</font>
-  {% else %}
-  <font size="2"><i>Brak jadłospisu na ten tydzień.</i></font>
-  {% endfor %}
-```
-
-Żeby pokazać oba pobrane tygodnie, usuń warunek `if od <= data <= do` z pętli.
-Warianty dietetyczne pokażesz, zamieniając `menu.potrawy` na `menu.dieta`.
-
-**Odstępy między wierszami.** `line-height` jest właściwością wyłącznie CSS-ową,
-więc bez `card_mod` nie da się jej zmienić. Powyższa karta używa jednak `<br>`
-zamiast `<ul>`, co usuwa marginesy elementów listy — a to one odpowiadają za
-większość luzu. Pełną kontrolę daje dopiero
-[card_mod](https://github.com/thomasloven/lovelace-card-mod):
-
-```yaml
-card_mod:
-  style: |
-    ha-card { line-height: 1.15; }
-    ha-card .card-header { font-size: 20px; line-height: 1.2; padding-bottom: 4px; }
-```
-
-### Powiadomienie
-
-Blueprint wysyła jadłospis raz dziennie na wybraną encję `notify` (telefon
-z aplikacji Home Assistant albo powiadomienie w panelu). Gdy na ten dzień nie
-ma potraw — weekend, święto, menu jeszcze nieopublikowane — nic nie wychodzi.
-
-HACS go nie instaluje razem z integracją. W Home Assistant wklej adres
-w **Ustawienia → Automatyzacje i sceny → Blueprinty → Importuj blueprint**:
+HACS go nie instaluje. Wklej adres w **Ustawienia → Automatyzacje i sceny →
+Blueprinty → Importuj blueprint**:
 
 ```text
 https://github.com/parfienczyk/ha-e-stolowka/blob/main/blueprints/automation/e_stolowka/powiadomienie_jadlospis.yaml
 ```
 
-Powiadomienie wychodzi o **7:30** z sensora **Jadłospis na dziś**, domyślnie
-tylko w poniedziałek–piątek. Tuż przed wysłaniem blueprint odświeża jadłospis,
-więc menu opublikowane wieczorem albo rano też trafi do powiadomienia.
-Warianty `DIETA:` dopiszesz przełącznikiem w konfiguracji blueprintu.
+Sensor w blueprintcie to **Jadłospis na dziś**, nie tygodniowy.
 
-## Inna szkoła na loca.pl
+## Inna szkoła
 
-Integracja nie jest przywiązana do jednej szkoły — wystarczy podać adres swojej.
-Jeśli jadłospis nie zostanie znaleziony, to znaczy, że Twoja szkoła trzyma go pod
-inną ścieżką albo w innym układzie HTML. Pomoże skrypt diagnostyczny:
+Wystarczy adres swojej szkoły. Gdy jadłospis nie zostanie znaleziony, układ
+strony jest inny niż ten, który parser zna. Skrypt diagnostyczny zapisuje
+strony do `dump/` (katalog jest w `.gitignore` i może zawierać dane dziecka):
 
 ```bash
 pip install -r requirements-test.txt
-cp .env.example .env    # wpisz adres szkoły, e-mail i hasło
+cp .env.example .env    # adres, e-mail i hasło; .env nie trafia do gita
 python3 scripts/explore.py
 ```
 
-`.env` jest w `.gitignore`. Zamiast pliku możesz podać zmienne środowiskowe
-(`STOLOWKA_URL`, `STOLOWKA_EMAIL`, `STOLOWKA_PASSWORD`) — mają pierwszeństwo.
-Bez hasła skrypt zapyta o nie interaktywnie.
-
-Skrypt loguje się, przechodzi po linkach w `/sites/` (pomija linki z `action=`, żeby
-niczego nie kliknąć na koncie rodzica), zapisuje strony do `dump/` (katalog jest
-w `.gitignore`) i wypisuje, które z nich parser rozpoznaje jako jadłospis. Jeśli lista
-aktualności Twojej szkoły jest pod innym adresem, dopisz go do `NEWS_PATHS`
-w `custom_components/e_stolowka/const.py`; jeśli wpisy nazywają się inaczej niż
-`jadlospis-DDMMYY-DDMMYY,id`, trzeba poszerzyć wzorzec `_RE_MENU_LINK` w `api.py`.
-Tak czy inaczej — otwórz [zgłoszenie](https://github.com/parfienczyk/ha-e-stolowka/issues),
-dodamy obsługę na stałe.
-
-> Zrzuty w `dump/` mogą zawierać dane Twojego dziecka. Przejrzyj je, zanim gdziekolwiek wyślesz.
+Zmienne `STOLOWKA_URL`, `STOLOWKA_EMAIL` i `STOLOWKA_PASSWORD` mają
+pierwszeństwo przed plikiem. Potem otwórz
+[zgłoszenie](https://github.com/parfienczyk/ha-e-stolowka/issues) — dopiszemy szkołę na stałe.
 
 ## Rozwój
 
 ```bash
 pip install -r requirements-test.txt
-pytest tests/ -q      # testy parsera, nie wymagają Home Assistanta
+pytest tests/ -q
 ruff check . && ruff format --check .
 ```
 
 ## Prywatność
 
-Dane logowania trafiają wyłącznie na serwer Twojej szkoły i są przechowywane
-w konfiguracji Home Assistanta na Twoim urządzeniu. Każdy wpis konfiguracyjny ma
-własną sesję i własne ciasteczka. Integracja nie wysyła niczego nigdzie indziej
-i nie zbiera telemetrii — szczegóły w [SECURITY.md](SECURITY.md).
+Hasło idzie tylko na serwer szkoły, po `https://`, i zostaje w konfiguracji
+Home Assistanta na Twoim urządzeniu. Każdy wpis ma własną sesję. Nie ma
+telemetrii. Szczegóły: [SECURITY.md](SECURITY.md).
 
 ## Dokumenty
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) — jak pomóc, jak uruchomić testy, jak dodać obsługę kolejnej szkoły
-- [SECURITY.md](SECURITY.md) — co integracja robi z danymi logowania i czego nie wysyłać publicznie
+- [CONTRIBUTING.md](CONTRIBUTING.md) — jak pomóc i jak dodać kolejną szkołę
+- [SECURITY.md](SECURITY.md) — dane logowania i czego nie wysyłać publicznie
 - [CHANGELOG.md](CHANGELOG.md) — historia zmian
 
 ## Licencja
 
 [MIT](LICENSE)
-
-Jeśli ta integracja oszczędza Ci porannego pytania „co dziś na obiad?" —
-zostaw gwiazdkę. To cała zapłata, jakiej projekt oczekuje.
