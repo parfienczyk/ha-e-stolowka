@@ -128,7 +128,16 @@ async def main() -> int:
 
             for link in soup.select("a[href]"):
                 nxt = urljoin(url, str(link["href"])).split("#")[0]
-                if urlparse(nxt).hostname == host and "wyloguj" not in nxt.lower():
+                parts = urlparse(nxt)
+                # Tylko strony serwisu. Konto rodzica (zamówienia, odwołania
+                # posiłków, płatności) może mieć akcje w zwykłych linkach,
+                # a skrypt jest zalogowany — kliknięcie zmieniłoby prawdziwe dane.
+                if (
+                    parts.hostname == host
+                    and parts.path.startswith("/sites/")
+                    and "action=" not in parts.query
+                    and "wyloguj" not in nxt.lower()
+                ):
                     queue.append(nxt)
 
         print(f"\nZrzuty stron: {DUMP}")

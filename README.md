@@ -234,8 +234,9 @@ https://github.com/parfienczyk/ha-e-stolowka/blob/main/blueprints/automation/e_s
 ```
 
 Powiadomienie wychodzi o **7:30** z sensora **Jadłospis na dziś**, domyślnie
-tylko w poniedziałek–piątek. Warianty `DIETA:` dopiszesz przełącznikiem
-w konfiguracji blueprintu.
+tylko w poniedziałek–piątek. Tuż przed wysłaniem blueprint odświeża jadłospis,
+więc menu opublikowane wieczorem albo rano też trafi do powiadomienia.
+Warianty `DIETA:` dopiszesz przełącznikiem w konfiguracji blueprintu.
 
 ## Inna szkoła na loca.pl
 
@@ -253,7 +254,8 @@ python3 scripts/explore.py
 (`STOLOWKA_URL`, `STOLOWKA_EMAIL`, `STOLOWKA_PASSWORD`) — mają pierwszeństwo.
 Bez hasła skrypt zapyta o nie interaktywnie.
 
-Skrypt loguje się, przechodzi po linkach, zapisuje strony do `dump/` (katalog jest
+Skrypt loguje się, przechodzi po linkach w `/sites/` (pomija linki z `action=`, żeby
+niczego nie kliknąć na koncie rodzica), zapisuje strony do `dump/` (katalog jest
 w `.gitignore`) i wypisuje, które z nich parser rozpoznaje jako jadłospis. Jeśli lista
 aktualności Twojej szkoły jest pod innym adresem, dopisz go do `NEWS_PATHS`
 w `custom_components/e_stolowka/const.py`; jeśli wpisy nazywają się inaczej niż

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import date
 from pathlib import Path
 from typing import Any, Self
@@ -53,17 +54,23 @@ PAGES = {
 
 
 class _FakeContent:
-    """Treść odpowiedzi z limitem odczytu, jak strumień aiohttp."""
+    """Treść odpowiedzi przychodząca kawałkami, jak strumień aiohttp z sieci."""
+
+    PIECE = 64
 
     def __init__(self, body: bytes) -> None:
         """Zapamiętaj bajty."""
         self._body = body
 
     async def read(self, n: int = -1) -> bytes:
-        """Zwróć co najwyżej n bajtów."""
-        if n < 0:
-            return self._body
-        return self._body[:n]
+        """Jak w aiohttp: tylko to, co już dotarło — tu pierwszy kawałek."""
+        return self._body if n < 0 else self._body[: min(n, self.PIECE)]
+
+    async def iter_chunked(self, n: int) -> AsyncIterator[bytes]:
+        """Oddawaj treść kawałkami, nie większymi niż n."""
+        step = min(n, self.PIECE)
+        for start in range(0, len(self._body), step):
+            yield self._body[start : start + step]
 
 
 class FakeResponse:
@@ -107,6 +114,7 @@ class FakeSession:
         self.requested: list[str] = []
         self.calls: list[dict[str, Any]] = []
         self.login_succeeds = True
+        self.login_redirect: str | None = None
         self.redirects: dict[str, str] = {}
 
     def get(self, url: str, **kwargs: Any) -> FakeResponse:
@@ -127,8 +135,12 @@ class FakeSession:
         self.calls.append(kwargs)
         self.requested.append(f"POST {url}")
         self.login_attempts += 1
+        self.logged_in = self.login_succeeds
+        if self.login_redirect is not None:
+            return FakeResponse(
+                "", url=url, status=302, headers={"Location": self.login_redirect}
+            )
         if self.login_succeeds:
-            self.logged_in = True
             return FakeResponse('<body class="logged"></body>', url=url)
         return FakeResponse(LOGIN_PAGE, url=url)
 
@@ -283,6 +295,46 @@ def test_same_host_https_redirect_is_followed() -> None:
 
     assert list(days) == [date(2026, 9, 28)]
     assert target in session.requested
+
+
+def test_page_sent_in_pieces_is_read_whole() -> None:
+    """Strona przychodząca kawałkami nie jest ucinana po pierwszym."""
+    session = FakeSession(PAGES)
+    dishes = [f"danie numer {i}" for i in range(20)]
+    session.pages[MENU_28] = (
+        '<body class="logged"><main><p><strong>PONIEDZIAŁEK 28.09.26</strong></p>'
+        + "".join(f"<p>{dish}</p>" for dish in dishes)
+        + "</main></body>"
+    )
+
+    days = asyncio.run(_client(session).async_get_menu(date(2026, 9, 30)))
+
+    assert days[date(2026, 9, 28)].dishes == dishes
+
+
+def test_login_redirect_is_followed_with_get() -> None:
+    """Po 302 z logowania idzie GET bez formularza — hasło nie leci drugi raz."""
+    session = FakeSession(PAGES, logged_in=False)
+    session.login_redirect = f"{BASE}/"
+
+    asyncio.run(_client(session).async_login())
+
+    post = session.requested.index(f"POST {BASE}/")
+    assert session.requested[post + 1] == f"{BASE}/"
+    assert session.calls[post + 1].get("data") is None
+    assert session.login_attempts == 1
+
+
+def test_base_url_with_path_keeps_only_the_host() -> None:
+    """Adres wklejony z paska przeglądarki, razem ze ścieżką, działa."""
+    session = FakeSession(PAGES)
+    client = LocaClient(
+        session, f"{BASE}/sites/zobacz_wiadomosci", "rodzic@example.com", "tajne"
+    )
+
+    days = asyncio.run(client.async_get_menu(date(2026, 9, 30)))
+
+    assert list(days) == [date(2026, 9, 28)]
 
 
 def test_oversized_page_is_rejected() -> None:

@@ -139,3 +139,17 @@ if (renders !== afterFirst) {
   console.error(`Karta rysowała się ponownie: ${renders} zamiast ${afterFirst}`);
   process.exit(1);
 }
+
+const changedHass = {
+  ...zoneCard.hass,
+  states: {
+    [entity]: {
+      attributes: { dni: { "2026-11-17": { potrawy: ["OBIAD-NOWY"], dieta: [] } } },
+    },
+  },
+};
+skipCard.hass = changedHass;
+if (renders !== afterFirst + 1 || !skipCard.shadowRoot.innerHTML.includes("OBIAD-NOWY")) {
+  console.error("Karta nie przerysowała się po zmianie stanu encji");
+  process.exit(1);
+}

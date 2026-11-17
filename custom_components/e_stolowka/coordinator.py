@@ -58,17 +58,12 @@ class LocaCoordinator(DataUpdateCoordinator[dict[date, MenuDay]]):
             entry.data[CONF_EMAIL],
             entry.data[CONF_PASSWORD],
         )
-        self._logged_in = False
 
     async def _async_update_data(self) -> dict[date, MenuDay]:
-        """Pobierz jadłospis, logując się przy pierwszym przebiegu."""
+        """Pobierz jadłospis; klient sam loguje się, gdy dostanie stronę logowania."""
         try:
-            if not self._logged_in:
-                await self.client.async_login()
-                self._logged_in = True
             return await self.client.async_get_menu(dt_util.now().date())
         except LocaAuthError as err:
-            self._logged_in = False
             raise ConfigEntryAuthFailed(str(err)) from err
         except LocaError as err:
             raise UpdateFailed(str(err)) from err

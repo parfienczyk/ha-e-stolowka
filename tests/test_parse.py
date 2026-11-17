@@ -111,12 +111,19 @@ def test_ignores_posts_that_are_not_menus() -> None:
     assert all("przerwy-obiadowe" not in link.url for link in links)
 
 
-def test_menu_link_covers() -> None:
-    """Wpis obejmuje dni od początku do końca tygodnia włącznie."""
-    link = find_menu_links((FIXTURES / "wiadomosci.html").read_text(), BASE)[1]
-    assert link.covers(MONDAY)
-    assert link.covers(date(2026, 10, 2))
-    assert not link.covers(date(2026, 10, 3))
+def test_corrected_menu_replaces_the_old_post() -> None:
+    """Nowszy wpis na ten sam tydzień wygrywa i nie wypycha następnego tygodnia."""
+    html = (
+        '<a href="/sites/jadlospis-280926-021026,1950">poprawiony</a>'
+        '<a href="/sites/jadlospis-280926-021026,1946">stary</a>'
+        '<a href="/sites/jadlospis-280926-021026,1946">Czytaj więcej</a>'
+        '<a href="/sites/jadlospis-051026-091026,1960">następny</a>'
+    )
+    links = find_menu_links(html, BASE)
+    assert [link.url for link in links] == [
+        f"{BASE}/sites/jadlospis-280926-021026,1950",
+        f"{BASE}/sites/jadlospis-051026-091026,1960",
+    ]
 
 
 def test_page_without_menu_yields_nothing() -> None:
@@ -217,12 +224,17 @@ def test_repeated_dish_is_kept() -> None:
     assert days[MONDAY].dishes == ["Chleb", "Chleb"]
 
 
-def test_weekday_without_date_uses_week_from_url() -> None:
-    """Nagłówek „WTOREK" bez daty dostaje datę z tygodnia wpisu."""
+@pytest.mark.parametrize("header", ["WTOREK", "WTOREK:", "Wtorek \u2013"])
+def test_weekday_without_date_uses_week_from_url(header: str) -> None:
+    """Nagłówek „WTOREK" bez daty, też z dwukropkiem, dostaje datę z tygodnia."""
     days = parse_menu(
-        "<p><strong>WTOREK</strong></p><p>zupa B</p>", TODAY, week_start=MONDAY
+        "<p><strong>PONIEDZIAŁEK 28.09.26</strong></p><p>zupa A</p>"
+        f"<p><strong>{header}</strong></p><p>zupa B</p>",
+        TODAY,
+        week_start=MONDAY,
     )
-    assert list(days) == [TUESDAY]
+    assert list(days) == [MONDAY, TUESDAY]
+    assert days[MONDAY].dishes == ["zupa A"]
     assert days[TUESDAY].dishes == ["zupa B"]
 
 

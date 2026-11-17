@@ -115,10 +115,6 @@ class MenuLink:
     start: date
     end: date
 
-    def covers(self, day: date) -> bool:
-        """Czy wpis obejmuje podaną datę."""
-        return self.start <= day <= self.end
-
 
 class LocaClient:
     """Sesja rodzica w e-Stołówce."""
@@ -132,10 +128,12 @@ class LocaClient:
     ) -> None:
         """Przygotuj klienta. Nie wykonuje żadnych żądań."""
         self._session = session
-        self._base = base_url.rstrip("/")
-        parts = urlparse(self._base)
+        parts = urlparse(base_url)
         if parts.scheme != "https" or not parts.hostname:
             raise LocaUrlError("Adres szkoły musi zaczynać się od https://")
+        # Zostaje sam host: adres skopiowany z paska przeglądarki, np.
+        # …/sites/zobacz_wiadomosci, przesunąłby każde żądanie pod zły adres.
+        self._base = f"https://{parts.netloc}"
         self._host = parts.hostname
         self._email = email
         self._password = password
@@ -151,11 +149,14 @@ class LocaClient:
         if parts.scheme != "https" or parts.hostname != self._host:
             raise LocaConnectionError(f"Odmawiam adresu spoza szkoły: {url}")
 
-    async def _fetch(self, path: str, data: dict[str, str] | None = None) -> str:
-        """Pobierz stronę; POST, gdy podano dane formularza.
+    async def _fetch(
+        self, path: str, data: dict[str, str] | None = None
+    ) -> BeautifulSoup:
+        """Pobierz i sparsuj stronę; POST, gdy podano dane formularza.
 
         Przekierowanie idzie dalej tylko na https tego samego hosta. Inaczej
         wpis na stronie szkoły wysłałby Home Assistanta na inny komputer w domu.
+        Strona jest parsowana tu i tylko raz — parsowanie blokuje pętlę HA.
         """
         url = self._url(path)
         payload = data
@@ -176,20 +177,20 @@ class LocaClient:
                         if resp.status in (301, 302, 303):
                             payload = None
                         continue
-                    self._require_school(str(resp.url))
                     resp.raise_for_status()
-                    return await _read_capped(resp)
+                    html = await _read_capped(resp)
             except ClientError as err:
                 raise LocaConnectionError(f"Błąd połączenia z {url}: {err}") from err
             except TimeoutError as err:
                 raise LocaConnectionError(
                     f"Przekroczono czas odpowiedzi {url}"
                 ) from err
+            return BeautifulSoup(html, "html.parser")
         raise LocaConnectionError(f"Za dużo przekierowań: {url}")
 
     async def _async_csrf_token(self) -> str:
         """Pobierz token CSRF z formularza logowania."""
-        soup = BeautifulSoup(await self._fetch("/"), "html.parser")
+        soup = await self._fetch("/")
         token = soup.select_one('form input[name="token"]')
         if token is None or not token.get("value"):
             raise LocaParseError("Nie znaleziono tokenu w formularzu logowania")
@@ -197,7 +198,7 @@ class LocaClient:
 
     async def async_login(self) -> None:
         """Zaloguj się i zapisz sesję w ciasteczkach."""
-        html = await self._fetch(
+        page = await self._fetch(
             "/",
             {
                 "module": LOGIN_MODULE,
@@ -208,7 +209,7 @@ class LocaClient:
                 "submit": "Zaloguj",
             },
         )
-        if _is_logged_out(html):
+        if _is_logged_out(page):
             raise LocaAuthError("Odrzucono logowanie — sprawdź e-mail i hasło")
         # Bez adresu e-mail: logi debug trafiają do publicznych zgłoszeń.
         _LOGGER.debug("Zalogowano w e-Stołówce (%s)", self._base)
@@ -221,10 +222,10 @@ class LocaClient:
         today = today or date.today()
         for attempt in (1, 2):
             try:
-                html = await self._async_fetch_news()
-                if _is_logged_out(html):
+                news = await self._async_fetch_news()
+                if _is_logged_out(news):
                     raise LocaAuthError("Lista aktualności wymaga logowania")
-                return await self._async_collect(html, today)
+                return await self._async_collect(news, today)
             except LocaAuthError:
                 if attempt == 2:
                     raise
@@ -235,9 +236,11 @@ class LocaClient:
                 await self.async_login()
         raise LocaParseError("Nie udało się pobrać jadłospisu")
 
-    async def _async_collect(self, news_html: str, today: date) -> dict[date, MenuDay]:
+    async def _async_collect(
+        self, news: BeautifulSoup, today: date
+    ) -> dict[date, MenuDay]:
         """Wybierz aktualne wpisy z jadłospisem i scal ich treść."""
-        links = find_menu_links(news_html, self._base)
+        links = find_menu_links(news, self._base)
         if not links:
             raise LocaParseError(
                 "Na liście aktualności nie ma wpisów z jadłospisem — "
@@ -257,6 +260,7 @@ class LocaClient:
             page = await self._fetch(link.url)
             # Sesja mogła wygasnąć już po pobraniu listy aktualności; bez tego
             # sprawdzenia strona logowania wyglądałaby jak pusty jadłospis.
+            # Musi iść przed parse_menu, które usuwa z drzewa część znaczników.
             if _is_logged_out(page):
                 raise LocaAuthError("Sesja wygasła przy czytaniu jadłospisu")
             days.update(parse_menu(page, today, link.start))
@@ -268,7 +272,7 @@ class LocaClient:
             )
         return dict(sorted(days.items()))
 
-    async def _async_fetch_news(self) -> str:
+    async def _async_fetch_news(self) -> BeautifulSoup:
         """Pobierz listę aktualności; zapamiętuje działającą ścieżkę."""
         if self._news_path is not None:
             return await self._fetch(self._news_path)
@@ -277,14 +281,14 @@ class LocaClient:
         loaded = False
         for path in NEWS_PATHS:
             try:
-                html = await self._fetch(path)
+                page = await self._fetch(path)
             except LocaConnectionError as err:
                 last_error = err
                 continue
             loaded = True
-            if _is_logged_out(html) or find_menu_links(html, self._base):
+            if _is_logged_out(page) or find_menu_links(page, self._base):
                 self._news_path = path
-                return html
+                return page
 
         # Rozróżniamy „nie dowieźliśmy żadnej strony” od „strony są, ale bez
         # jadłospisu”. Drugi przypadek zdarza się szkołom z innym układem serwisu
@@ -303,10 +307,16 @@ class LocaClient:
 
 
 async def _read_capped(resp: ClientResponse) -> str:
-    """Odczytaj treść odpowiedzi, najwyżej MAX_PAGE_BYTES bajtów."""
-    raw = await resp.content.read(MAX_PAGE_BYTES + 1)
-    if len(raw) > MAX_PAGE_BYTES:
-        raise LocaConnectionError("Odpowiedź szkoły jest za duża")
+    """Odczytaj całą treść odpowiedzi, najwyżej MAX_PAGE_BYTES bajtów.
+
+    Nie `content.read(n)`: zwraca tylko to, co już dotarło, więc strona wysłana
+    w kilku kawałkach zostałaby ucięta bez żadnego błędu.
+    """
+    raw = bytearray()
+    async for chunk in resp.content.iter_chunked(64 * 1024):
+        raw += chunk
+        if len(raw) > MAX_PAGE_BYTES:
+            raise LocaConnectionError("Odpowiedź szkoły jest za duża")
     encoding = resp.charset or "utf-8"
     try:
         return raw.decode(encoding)
@@ -314,24 +324,30 @@ async def _read_capped(resp: ClientResponse) -> str:
         raise LocaConnectionError(f"Nieczytelna treść strony {resp.url}") from err
 
 
-def _is_logged_out(html: str) -> bool:
+def _soup(page: str | BeautifulSoup) -> BeautifulSoup:
+    """Drzewo strony; gotowe drzewo przechodzi bez ponownego parsowania."""
+    if isinstance(page, BeautifulSoup):
+        return page
+    return BeautifulSoup(page, "html.parser")
+
+
+def _is_logged_out(soup: BeautifulSoup) -> bool:
     """Czy serwer zwrócił stronę dla niezalogowanego użytkownika."""
-    soup = BeautifulSoup(html, "html.parser")
     body = soup.body
     if body is not None and "unlogged" in (body.get("class") or []):
         return True
     return soup.select_one('form input[value="zaloguj"]') is not None
 
 
-def find_menu_links(html: str, base_url: str) -> list[MenuLink]:
+def find_menu_links(page: str | BeautifulSoup, base_url: str) -> list[MenuLink]:
     """Znajdź wpisy z jadłospisem, posortowane po dacie początkowej.
 
     Zakres dat czytamy z adresu wpisu, więc wybór właściwego tygodnia nie
-    wymaga pobierania wszystkich wpisów.
+    wymaga pobierania wszystkich wpisów. Na jeden tydzień przypada jeden wpis.
     """
-    soup = BeautifulSoup(html, "html.parser")
+    soup = _soup(page)
     host = urlparse(base_url).hostname
-    links: dict[str, MenuLink] = {}
+    links: dict[tuple[date, date], tuple[int, MenuLink]] = {}
     for anchor in soup.select("a[href]"):
         href = str(anchor["href"])
         match = _RE_MENU_LINK.search(href)
@@ -350,8 +366,14 @@ def find_menu_links(html: str, base_url: str) -> list[MenuLink]:
             _LOGGER.debug("Pomijam odnośnik spoza %s: %s", host, url)
             continue
 
-        links[url] = MenuLink(url=url, start=start, end=end)
-    return sorted(links.values(), key=lambda link: link.start)
+        # Poprawiony jadłospis to nowy wpis na ten sam tydzień. Zostaje ten
+        # o wyższym numerze: starszy nadpisałby poprawkę i zajął miejsce
+        # następnego tygodnia.
+        post_id = int(match.group(3))
+        known = links.get((start, end))
+        if known is None or post_id > known[0]:
+            links[(start, end)] = (post_id, MenuLink(url=url, start=start, end=end))
+    return sorted((link for _, link in links.values()), key=lambda link: link.start)
 
 
 def _slug_date(value: str) -> date | None:
@@ -363,7 +385,7 @@ def _slug_date(value: str) -> date | None:
 
 
 def parse_menu(
-    html: str,
+    page: str | BeautifulSoup,
     today: date | None = None,
     week_start: date | None = None,
 ) -> dict[date, MenuDay]:
@@ -372,9 +394,9 @@ def parse_menu(
     Dni rozdzielone są akapitami z nazwą dnia tygodnia i datą; wszystko między
     nagłówkami to potrawy. Gdy szkoła użyła tabeli, przechodzimy na parser tabel.
     `week_start` (data z adresu wpisu) pozwala rozpoznać dzień także wtedy, gdy
-    w nagłówku jest sama nazwa dnia, bez daty.
+    w nagłówku jest sama nazwa dnia, bez daty. Podane drzewo jest zmieniane.
     """
-    soup = BeautifulSoup(html, "html.parser")
+    soup = _soup(page)
     for tag in soup.select("script, style, nav, footer, header"):
         tag.decompose()
     for line_break in soup.find_all("br"):
@@ -431,7 +453,8 @@ def _day_header(
     """
     match = _RE_DAY_HEADER.match(line)
     if match is not None:
-        rest = match.group(2).strip()
+        # „WTOREK:” i „Wtorek -” (także z półpauzą i pauzą) to sama nazwa dnia.
+        rest = match.group(2).strip(" :.,-\u2013\u2014")
         # „Piątek z kurczakiem” to danie, nie nagłówek. Sama nazwa dnia — tak.
         if rest:
             day = _parse_date(rest, today)

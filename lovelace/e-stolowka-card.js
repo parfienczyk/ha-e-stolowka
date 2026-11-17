@@ -21,6 +21,9 @@ const MONTH_ABBREVIATIONS = [
   "lip", "sie", "wrz", "paź", "lis", "gru",
 ];
 
+// Budowa formatera jest droga, a „dziś" liczymy przy każdej zmianie stanu w HA.
+const dayFormatters = new Map();
+
 /** Data „dziś" w strefie Home Assistanta, w formacie klucza atrybutu `dni`. */
 const isoToday = (timeZone) => {
   const now = new Date();
@@ -28,12 +31,15 @@ const isoToday = (timeZone) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   }
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
+  if (!dayFormatters.has(timeZone)) {
+    dayFormatters.set(timeZone, new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }));
+  }
+  const parts = dayFormatters.get(timeZone).formatToParts(now);
   const value = (type) => parts.find((part) => part.type === type).value;
   return `${value("year")}-${value("month")}-${value("day")}`;
 };
@@ -196,11 +202,14 @@ class EStolowkaCard extends HTMLElement {
     this._hass = hass;
     this.classList.toggle("dark", Boolean(hass?.themes?.darkMode));
     if (!this._config) return;
-    const dni = hass?.states?.[this._config.entity]?.attributes?.dni;
-    // Data jest w kluczu, bo o północy zmienia się „dziś", a atrybut `dni` nie.
-    const menuKey = `${isoToday(hass?.config?.time_zone)}\0${JSON.stringify(dni ?? null)}`;
-    if (menuKey === this._menuKey) return;
-    this._menuKey = menuKey;
+    // HA woła to przy zmianie dowolnej encji, a obiekt stanu podmienia tylko
+    // przy zmianie tej jednej — wystarczy porównać referencję. Data osobno,
+    // bo o północy zmienia się „dziś", a stan nie.
+    const state = hass?.states?.[this._config.entity];
+    const today = isoToday(hass?.config?.time_zone);
+    if (state === this._lastState && today === this._lastToday) return;
+    this._lastState = state;
+    this._lastToday = today;
     this._render();
   }
 

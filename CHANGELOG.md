@@ -5,6 +5,33 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Naprawione
+
+- Strona, którą serwer wysłał w kilku kawałkach, była ucinana bez żadnego
+  błędu — znikały dni jadłospisu albo odnośniki do wpisów. Błąd wszedł razem
+  z limitem 1 MB.
+- Poprawiony jadłospis, opublikowany jako nowy wpis na ten sam tydzień,
+  zastępuje stary. Wcześniej stary nadpisywał poprawkę i wypychał następny
+  tydzień, więc w piątek „jutro” było puste.
+- Nagłówek dnia z dwukropkiem albo myślnikiem („WTOREK:”) nie dokleja potraw
+  do poprzedniego dnia.
+- Adres szkoły wklejony razem ze ścieżką (np. z paska przeglądarki) działa —
+  liczy się sam host.
+- Blueprint powiadomienia odświeża jadłospis tuż przed wysłaniem, więc menu
+  opublikowane w niedzielę wieczorem trafia do poniedziałkowego powiadomienia.
+
+### Zmienione
+
+- Każda strona jest parsowana raz, a nie 2–4 razy, więc odświeżanie krócej
+  blokuje Home Assistanta.
+- Karta nie przelicza całego jadłospisu przy każdej zmianie stanu w Home
+  Assistancie.
+
+### Bezpieczeństwo
+
+- `scripts/explore.py` chodzi tylko po stronach `/sites/` i pomija linki
+  z `action=`, żeby nie wywołać akcji na prawdziwym koncie rodzica.
+
 ## [0.6.1] — 2026-11-17
 
 ### Bezpieczeństwo
