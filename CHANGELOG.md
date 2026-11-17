@@ -5,6 +5,8 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.6.0] — 2026-11-17
+
 ### Usunięte
 
 - Publiczna strona szkoły jako źródło jadłospisu (dodana w 0.5.0). Jadłospis
