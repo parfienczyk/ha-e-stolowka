@@ -5,6 +5,8 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+## [0.6.4] — 2026-11-18
+
 ### Naprawione
 
 - Wpis z tytułem „od 16.11.26 do 20.11.26” (adres `jadlospis-od-…`) nie był
@@ -186,7 +188,8 @@ czyta listę aktualności, wybiera wpisy obejmujące dzisiejszą datę (bieżąc
 tydzień i następny) i tylko je pobiera. Obsługiwany jest układ akapitowy
 (nagłówek dnia + potrawy) oraz tabelaryczny.
 
-[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.3...HEAD
+[Niewydane]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/parfienczyk/ha-e-stolowka/compare/v0.6.0...v0.6.1
