@@ -153,3 +153,23 @@ if (renders !== afterFirst + 1 || !skipCard.shadowRoot.innerHTML.includes("OBIAD
   console.error("Karta nie przerysowała się po zmianie stanu encji");
   process.exit(1);
 }
+
+const staleCard = new defined["e-stolowka-card"]();
+staleCard.setConfig({ entity, range: "week" });
+staleCard.hass = {
+  ...zoneCard.hass,
+  states: {
+    [entity]: {
+      attributes: {
+        dni: {
+          "2026-11-09": { potrawy: ["STARE"], dieta: [] },
+          "2026-11-13": { potrawy: ["STARE"], dieta: [] },
+        },
+      },
+    },
+  },
+};
+if (!staleCard.shadowRoot.innerHTML.includes("Najnowszy pobrany jadłospis: 9 lis – 13 lis")) {
+  console.error(`Pusta karta nie pokazuje zakresu pobranych dni:\n${staleCard.shadowRoot.innerHTML}`);
+  process.exit(1);
+}

@@ -105,6 +105,31 @@ def test_finds_menu_link_when_slug_has_word_between_dates() -> None:
     assert links[0].url == f"{BASE}/sites/jadlospis-191026-do-231026,2007"
 
 
+@pytest.mark.parametrize(
+    "slug",
+    [
+        "jadlospis-od-161126-do-201126",
+        "jadlospis-na-tydzien-161126-201126",
+        "jadlospis-poprawiony-161126-201126-v2",
+        "jadlospis-16112026-20112026",
+        "jadlospis161126-201126",
+    ],
+)
+def test_finds_menu_link_whatever_words_surround_dates(slug: str) -> None:
+    """Słowa z tytułu wpisu wokół dat nie mają znaczenia."""
+    links = find_menu_links(f'<a href="/sites/{slug},2059">Czytaj więcej</a>', BASE)
+    assert [(link.start, link.end) for link in links] == [
+        (date(2026, 11, 16), date(2026, 11, 20))
+    ]
+
+
+def test_warns_about_menu_link_without_dates(caplog: pytest.LogCaptureFixture) -> None:
+    """Wpis z jadłospisem bez czytelnych dat trafia do logu, a nie znika po cichu."""
+    html = '<a href="/sites/jadlospis-na-ten-tydzien,2060">Czytaj więcej</a>'
+    assert find_menu_links(html, BASE) == []
+    assert "jadlospis-na-ten-tydzien,2060" in caplog.text
+
+
 def test_ignores_posts_that_are_not_menus() -> None:
     """Inne aktualności nie są brane za jadłospis."""
     links = find_menu_links((FIXTURES / "wiadomosci.html").read_text(), BASE)

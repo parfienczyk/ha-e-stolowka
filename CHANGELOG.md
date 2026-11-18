@@ -5,6 +5,22 @@ Projekt stosuje [wersjonowanie semantyczne](https://semver.org/lang/pl/).
 
 ## [Niewydane]
 
+### Naprawione
+
+- Wpis z tytułem „od 16.11.26 do 20.11.26” (adres `jadlospis-od-…`) nie był
+  rozpoznawany jako jadłospis. Integracja pokazywała wtedy poprzedni tydzień,
+  a karta — „Brak jadłospisu”.
+
+### Zmienione
+
+- Wpis z jadłospisem rozpoznawany jest po słowie `jadlospis` w adresie,
+  a zakres tygodnia to pierwsza i ostatnia data w adresie, niezależnie od
+  słów wokół nich. Daty mogą mieć rok dwu- albo czterocyfrowy.
+- Wpis z jadłospisem, z którego nie da się odczytać dat, trafia do logu
+  jako ostrzeżenie z jego adresem.
+- Pusta karta podaje zakres dni, które integracja pobrała — od razu widać,
+  że jadłospis jest, tylko z innego tygodnia.
+
 ## [0.6.3] — 2026-11-17
 
 ### Zmienione

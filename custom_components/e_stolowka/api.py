@@ -32,11 +32,11 @@ _REDIRECTS = frozenset({301, 302, 303, 307, 308})
 LOGIN_MODULE = "users"
 LOGIN_ACTION = "zaloguj"
 
-# Wpis z jadłospisem: /sites/jadlospis-<od DDMMYY>-<do DDMMYY>,<id>
-# Między datami bywa więcej niż jeden myślnik — CMS zamienia spację wokół
-# pauzy w tytule („05.10.26 - 09.10.26”) na `---`, a gdy tytuł brzmi
-# „19.10.26 do 23.10.26”, między datami stoi słowo: `-do-`.
-_RE_MENU_LINK = re.compile(r"jadlospis-(\d{6})-[-a-z]*?(\d{6}),(\d+)", re.IGNORECASE)
+# Wpis z jadłospisem: /sites/jadlospis-<tytuł>,<id>, np. jadlospis-280926-021026,
+# jadlospis-051026---091026, jadlospis-od-161126-do-201126. Słowa wokół dat
+# zależą od tytułu wpisu, więc z tytułu bierzemy tylko daty: pierwszą i ostatnią.
+_RE_MENU_LINK = re.compile(r"jadlospis([^,/?#]*),(\d+)", re.IGNORECASE)
+_RE_SLUG_DATE = re.compile(r"(?<!\d)(\d{8}|\d{6})(?!\d)")
 
 _WEEKDAYS_PL = (
     "poniedziałek",
@@ -353,8 +353,11 @@ def find_menu_links(page: str | BeautifulSoup, base_url: str) -> list[MenuLink]:
         match = _RE_MENU_LINK.search(href)
         if match is None:
             continue
-        start, end = _slug_date(match.group(1)), _slug_date(match.group(2))
+        dates = [_slug_date(value) for value in _RE_SLUG_DATE.findall(match.group(1))]
+        start, end = (dates[0], dates[-1]) if len(dates) >= 2 else (None, None)
         if start is None or end is None or end < start:
+            # Bez tego nowy kształt tytułu wpisu po cichu cofa jadłospis o tydzień.
+            _LOGGER.warning("Nie rozpoznaję zakresu dat w adresie wpisu: %s", href)
             continue
 
         url = urljoin(base_url + "/", href)
@@ -369,7 +372,7 @@ def find_menu_links(page: str | BeautifulSoup, base_url: str) -> list[MenuLink]:
         # Poprawiony jadłospis to nowy wpis na ten sam tydzień. Zostaje ten
         # o wyższym numerze: starszy nadpisałby poprawkę i zajął miejsce
         # następnego tygodnia.
-        post_id = int(match.group(3))
+        post_id = int(match.group(2))
         known = links.get((start, end))
         if known is None or post_id > known[0]:
             links[(start, end)] = (post_id, MenuLink(url=url, start=start, end=end))
@@ -377,9 +380,10 @@ def find_menu_links(page: str | BeautifulSoup, base_url: str) -> list[MenuLink]:
 
 
 def _slug_date(value: str) -> date | None:
-    """Zinterpretuj datę zapisaną w adresie wpisu jako DDMMYY."""
+    """Zinterpretuj datę zapisaną w adresie wpisu jako DDMMYY albo DDMMYYYY."""
     try:
-        return datetime.strptime(value, "%d%m%y").date()
+        layout = "%d%m%Y" if len(value) == 8 else "%d%m%y"
+        return datetime.strptime(value, layout).date()
     except ValueError:
         return None
 

@@ -241,12 +241,13 @@ class EStolowkaCard extends HTMLElement {
     return { days, missingEntity: false };
   }
 
-  _subtitle(days) {
-    if (days.length === 0) return "";
-    const first = fromIso(days[0].date);
-    const last = fromIso(days[days.length - 1].date);
+  /** Zakres posortowanych dat ISO, np. „9 lis – 13 lis". */
+  _dateRange(dates) {
+    if (dates.length === 0) return "";
+    const first = fromIso(dates[0]);
+    const last = fromIso(dates[dates.length - 1]);
     const format = (date) => `${date.getDate()} ${MONTH_ABBREVIATIONS[date.getMonth()]}`;
-    return days.length === 1 ? format(first) : `${format(first)} – ${format(last)}`;
+    return dates.length === 1 ? format(first) : `${format(first)} – ${format(last)}`;
   }
 
   _render() {
@@ -261,7 +262,7 @@ class EStolowkaCard extends HTMLElement {
         <div class="icon-badge"><ha-icon icon="mdi:silverware-fork-knife"></ha-icon></div>
         <div class="title-block">
           <div class="title">${escapeHtml(this._config.title)}</div>
-          <div class="subtitle">${escapeHtml(this._subtitle(days))}</div>
+          <div class="subtitle">${escapeHtml(this._dateRange(days.map((day) => day.date)))}</div>
         </div>
       </div>`;
 
@@ -273,8 +274,11 @@ class EStolowkaCard extends HTMLElement {
       body = this._emptyState("mdi:alert-circle-outline", "Nie znaleziono encji",
         this._config.entity);
     } else if (days.length === 0) {
-      body = this._emptyState("mdi:silverware-clean", "Brak jadłospisu",
-        "Na ten okres nie opublikowano jeszcze menu.");
+      // Dni spoza zakresu karty mówią, że problem jest w źródle, a nie w karcie.
+      const known = Object.keys(this._hass.states[this._config.entity]?.attributes?.dni || {}).sort();
+      body = this._emptyState("mdi:silverware-clean", "Brak jadłospisu", known.length
+        ? `Najnowszy pobrany jadłospis: ${this._dateRange(known)}.`
+        : "Na ten okres nie opublikowano jeszcze menu.");
     } else {
       body = `<div class="days">${days.map((day) => this._renderDay(day, today)).join("")}</div>`;
     }
